@@ -157,16 +157,20 @@ class OpenAIAgentsProvider(BaseLLMProvider):
         subprocess_env["FAIRSHARING_API_KEY"] = self.config.fairsharing_api_key
         subprocess_env["PYTHONPATH"] = src_dir
 
-        # Resolve command: if set to "python", use the exact current
-        # interpreter so the subprocess inherits virtualenv packages.
+        # Local dev uses "uv run fairsharing-mcp" (the default).
+        # Everywhere else (Azure, Docker, etc.), run the MCP server as a
+        # Python module using the current interpreter so virtualenv packages
+        # and PYTHONPATH are available — no console script needed.
         command = self.config.mcp_server_command
-        if command in ("python", "python3"):
+        args = self.config.mcp_server_args
+        if command != "uv":
             command = sys.executable
+            args = ["-m", "fairsharing_mcp.server"]
 
         self._mcp_server = MCPServerStdio(
             params={
                 "command": command,
-                "args": self.config.mcp_server_args,
+                "args": args,
                 "env": subprocess_env,
             },
             # Some tools (compare_policies_by_country, analyze_country_landscape)
