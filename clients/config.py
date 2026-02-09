@@ -21,6 +21,7 @@ class ClientConfig:
     model: str
     openai_api_key: str | None
     anthropic_api_key: str | None
+    conversation_log_dir: str
 
 
 def load_config() -> ClientConfig:
@@ -49,6 +50,7 @@ def load_config() -> ClientConfig:
 
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+    conversation_log_dir = os.environ.get("CONVERSATION_LOG_DIR", "")
 
     # Validate provider-specific keys
     if provider == "openai" and not openai_api_key:
@@ -66,4 +68,5 @@ def load_config() -> ClientConfig:
         model=model,
         openai_api_key=openai_api_key,
         anthropic_api_key=anthropic_api_key,
+        conversation_log_dir=conversation_log_dir,
     )

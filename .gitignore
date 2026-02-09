@@ -28,5 +28,11 @@ build/
 # Claude Code local settings
 .claude/
 
+# Conversation logs (local)
+logs/conversations/
+
+# Documentation
+Documentation/
+
 # Temp files
 ~$*

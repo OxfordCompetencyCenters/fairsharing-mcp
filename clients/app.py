@@ -16,6 +16,7 @@ if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
 from clients.config import load_config  # noqa: E402
+from clients.conversation_logger import ConversationLogger  # noqa: E402
 from clients.history import ConversationHistory  # noqa: E402
 from clients.providers import create_provider  # noqa: E402
 
@@ -64,6 +65,9 @@ def _init_provider() -> None:
         st.session_state.provider = provider
         st.session_state.history = ConversationHistory()
         st.session_state.model_name = config.model
+        st.session_state.conversation_logger = ConversationLogger(
+            log_dir=config.conversation_log_dir or None,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -119,6 +123,9 @@ def _render_chat() -> None:
         st.session_state.history.add_user(prompt)
         st.session_state.history.add_assistant(response)
         st.session_state.messages.append({"role": "assistant", "content": response})
+
+        if "conversation_logger" in st.session_state:
+            st.session_state.conversation_logger.log_turn(prompt, response)
 
 
 # ---------------------------------------------------------------------------
