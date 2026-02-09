@@ -1,0 +1,370 @@
+2026-02-09T08:51:55.1828783Z Container start method called.
+2026-02-09T08:51:55.1880099Z Establishing network.
+2026-02-09T08:51:55.1883827Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T08:52:18.2730292Z Image appsvc/python:3.14_20251017.5.tuxprod is pulled from registry 10.1.0.4:13209
+2026-02-09T08:52:18.2781373Z Container is starting.
+2026-02-09T08:52:18.2784324Z Establishing user namespace if not established already.
+2026-02-09T08:52:18.2785799Z Establishing network if not established already.
+2026-02-09T08:52:18.2787295Z Mounting volumes.
+2026-02-09T08:52:18.2811453Z Nested mountpoint 
+2026-02-09T08:52:18.2870341Z Nested mountpoint volatile/logs
+2026-02-09T08:52:18.3111705Z Nested mountpoint 
+2026-02-09T08:52:18.3233729Z Nested mountpoint 
+2026-02-09T08:52:18.3250148Z Nested mountpoint 
+2026-02-09T08:52:18.4352033Z Creating container.
+2026-02-09T08:52:18.4363363Z Creating pipes for streaming container io.
+2026-02-09T08:52:18.4375627Z Creating stdout named pipe at /podr/container/pipe/a47736ac06f5_fairsharing/stdout_d1971bfcbdb542cfad576cd1c2adaa09.
+2026-02-09T08:52:18.4385875Z Successfully created stdout named pipe at: /podr/container/pipe/a47736ac06f5_fairsharing/stdout_d1971bfcbdb542cfad576cd1c2adaa09.
+2026-02-09T08:52:18.4401963Z Opening named pipe /podr/container/pipe/a47736ac06f5_fairsharing/stdout_d1971bfcbdb542cfad576cd1c2adaa09 for reading in non-blocking mode.
+2026-02-09T08:52:18.4408627Z Successfully opened named pipe: /podr/container/pipe/a47736ac06f5_fairsharing/stdout_d1971bfcbdb542cfad576cd1c2adaa09.
+2026-02-09T08:52:18.4418761Z Successfully removed non-blocking flag from /podr/container/pipe/a47736ac06f5_fairsharing/stdout_d1971bfcbdb542cfad576cd1c2adaa09.
+2026-02-09T08:52:18.4424815Z Creating stderr named pipe at /podr/container/pipe/a47736ac06f5_fairsharing/stderr_106393792cd94504afb9a847fa08e10e.
+2026-02-09T08:52:18.4431759Z Successfully created stderr named pipe at: /podr/container/pipe/a47736ac06f5_fairsharing/stderr_106393792cd94504afb9a847fa08e10e.
+2026-02-09T08:52:18.4435636Z Opening named pipe /podr/container/pipe/a47736ac06f5_fairsharing/stderr_106393792cd94504afb9a847fa08e10e for reading in non-blocking mode.
+2026-02-09T08:52:18.4438631Z Successfully opened named pipe: /podr/container/pipe/a47736ac06f5_fairsharing/stderr_106393792cd94504afb9a847fa08e10e.
+2026-02-09T08:52:18.4441557Z Successfully removed non-blocking flag from /podr/container/pipe/a47736ac06f5_fairsharing/stderr_106393792cd94504afb9a847fa08e10e.
+2026-02-09T08:52:18.4463758Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.4:13209 and fully qualified image name: 10.1.0.4:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T08:52:18.7843950Z Starting container: a47736ac06f5_fairsharing.
+2026-02-09T08:52:18.8472558Z Starting watchers and probes.
+2026-02-09T08:52:18.8635415Z Starting metrics collection.
+2026-02-09T08:52:18.8668629Z Container is running.
+2026-02-09T08:52:18.9422549Z Container start method finished after 23758 ms.
+2026-02-09T08:52:29.1460072Z Site startup probe succeeded after 10.1862649 seconds.
+2026-02-09T08:52:29.3586519Z Site started.
+2026-02-09T08:52:29.4524009Z Site is running with patch version PYTHON 3.14.0
+2026-02-09T12:45:45.6979960Z Container start method called.
+2026-02-09T12:45:45.6987489Z Establishing network.
+2026-02-09T12:45:45.6989757Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T12:45:45.8059762Z Container is starting.
+2026-02-09T12:45:45.8061827Z Establishing user namespace if not established already.
+2026-02-09T12:45:45.8062994Z Establishing network if not established already.
+2026-02-09T12:45:45.8064483Z Mounting volumes.
+2026-02-09T12:45:45.8066450Z Nested mountpoint 
+2026-02-09T12:45:45.8095988Z Nested mountpoint volatile/logs
+2026-02-09T12:45:45.8118919Z Nested mountpoint 
+2026-02-09T12:45:45.8144743Z Nested mountpoint 
+2026-02-09T12:45:45.8217261Z Nested mountpoint 
+2026-02-09T12:45:45.8669624Z Creating container.
+2026-02-09T12:45:45.8670907Z Creating pipes for streaming container io.
+2026-02-09T12:45:45.8672309Z Creating stdout named pipe at /podr/container/pipe/8be0c405adee_fairsharing/stdout_57f1647ff9c44d33a4c64c5834dceb9e.
+2026-02-09T12:45:45.8674241Z Successfully created stdout named pipe at: /podr/container/pipe/8be0c405adee_fairsharing/stdout_57f1647ff9c44d33a4c64c5834dceb9e.
+2026-02-09T12:45:45.8684217Z Opening named pipe /podr/container/pipe/8be0c405adee_fairsharing/stdout_57f1647ff9c44d33a4c64c5834dceb9e for reading in non-blocking mode.
+2026-02-09T12:45:45.8685915Z Successfully opened named pipe: /podr/container/pipe/8be0c405adee_fairsharing/stdout_57f1647ff9c44d33a4c64c5834dceb9e.
+2026-02-09T12:45:45.8687309Z Successfully removed non-blocking flag from /podr/container/pipe/8be0c405adee_fairsharing/stdout_57f1647ff9c44d33a4c64c5834dceb9e.
+2026-02-09T12:45:45.8688464Z Creating stderr named pipe at /podr/container/pipe/8be0c405adee_fairsharing/stderr_2aca004e1c8b4d6b9b98855812e4f350.
+2026-02-09T12:45:45.8690676Z Successfully created stderr named pipe at: /podr/container/pipe/8be0c405adee_fairsharing/stderr_2aca004e1c8b4d6b9b98855812e4f350.
+2026-02-09T12:45:45.8691872Z Opening named pipe /podr/container/pipe/8be0c405adee_fairsharing/stderr_2aca004e1c8b4d6b9b98855812e4f350 for reading in non-blocking mode.
+2026-02-09T12:45:45.8693085Z Successfully opened named pipe: /podr/container/pipe/8be0c405adee_fairsharing/stderr_2aca004e1c8b4d6b9b98855812e4f350.
+2026-02-09T12:45:45.8694198Z Successfully removed non-blocking flag from /podr/container/pipe/8be0c405adee_fairsharing/stderr_2aca004e1c8b4d6b9b98855812e4f350.
+2026-02-09T12:45:45.8695583Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.4:13209 and fully qualified image name: 10.1.0.4:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T12:45:46.1791891Z Starting container: 8be0c405adee_fairsharing.
+2026-02-09T12:45:46.1969122Z Starting watchers and probes.
+2026-02-09T12:45:46.1972061Z Starting metrics collection.
+2026-02-09T12:45:46.1987599Z Container is running.
+2026-02-09T12:45:46.2273997Z Container start method finished after 528 ms.
+2026-02-09T12:45:53.2665428Z Site startup probe succeeded after 7.036001 seconds.
+2026-02-09T12:45:53.4055815Z Site is running with deployment version: d3ce9445-4958-4bce-8e8e-c7b95cfd8a5d
+2026-02-09T12:45:53.4073627Z Site started.
+2026-02-09T12:45:53.4095186Z Site is running with patch version PYTHON 3.14.0
+2026-02-09T12:46:13.4620740Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T12:46:13.4726100Z Stop and delete container. Retry count = 0
+2026-02-09T12:46:13.4735203Z Stopping container: a47736ac06f5_fairsharing.
+2026-02-09T12:46:18.5319327Z Deleting container: a47736ac06f5_fairsharing. Retry count = 0
+2026-02-09T12:46:18.6082198Z Container spec TerminationMessagePolicy  path 
+2026-02-09T12:46:18.6112746Z Container is terminated. Total time elapsed: 5148 ms.
+2026-02-09T12:46:18.6139421Z Site: fairsharing stopped.
+2026-02-09T13:01:27.1654378Z Container start method called.
+2026-02-09T13:01:27.1656204Z Establishing network.
+2026-02-09T13:01:27.1657500Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T13:01:27.2880096Z Container is starting.
+2026-02-09T13:01:27.2882191Z Establishing user namespace if not established already.
+2026-02-09T13:01:27.2883681Z Establishing network if not established already.
+2026-02-09T13:01:27.2885621Z Mounting volumes.
+2026-02-09T13:01:27.2920381Z Nested mountpoint 
+2026-02-09T13:01:27.2969753Z Nested mountpoint volatile/logs
+2026-02-09T13:01:27.3007919Z Nested mountpoint 
+2026-02-09T13:01:27.3047247Z Nested mountpoint 
+2026-02-09T13:01:27.3055474Z Nested mountpoint 
+2026-02-09T13:01:27.4294154Z Creating container.
+2026-02-09T13:01:27.4305203Z Creating pipes for streaming container io.
+2026-02-09T13:01:27.4424596Z Creating stdout named pipe at /podr/container/pipe/81d0d0ac5e45_fairsharing/stdout_602c54d2c8994abbad8023b50967c4d4.
+2026-02-09T13:01:27.4426729Z Successfully created stdout named pipe at: /podr/container/pipe/81d0d0ac5e45_fairsharing/stdout_602c54d2c8994abbad8023b50967c4d4.
+2026-02-09T13:01:27.4427783Z Opening named pipe /podr/container/pipe/81d0d0ac5e45_fairsharing/stdout_602c54d2c8994abbad8023b50967c4d4 for reading in non-blocking mode.
+2026-02-09T13:01:27.4429206Z Successfully opened named pipe: /podr/container/pipe/81d0d0ac5e45_fairsharing/stdout_602c54d2c8994abbad8023b50967c4d4.
+2026-02-09T13:01:27.4430231Z Successfully removed non-blocking flag from /podr/container/pipe/81d0d0ac5e45_fairsharing/stdout_602c54d2c8994abbad8023b50967c4d4.
+2026-02-09T13:01:27.4431292Z Creating stderr named pipe at /podr/container/pipe/81d0d0ac5e45_fairsharing/stderr_21bef478571344269e3b0ee4a729f57f.
+2026-02-09T13:01:27.4432918Z Successfully created stderr named pipe at: /podr/container/pipe/81d0d0ac5e45_fairsharing/stderr_21bef478571344269e3b0ee4a729f57f.
+2026-02-09T13:01:27.4433911Z Opening named pipe /podr/container/pipe/81d0d0ac5e45_fairsharing/stderr_21bef478571344269e3b0ee4a729f57f for reading in non-blocking mode.
+2026-02-09T13:01:27.4435109Z Successfully opened named pipe: /podr/container/pipe/81d0d0ac5e45_fairsharing/stderr_21bef478571344269e3b0ee4a729f57f.
+2026-02-09T13:01:27.4436145Z Successfully removed non-blocking flag from /podr/container/pipe/81d0d0ac5e45_fairsharing/stderr_21bef478571344269e3b0ee4a729f57f.
+2026-02-09T13:01:27.4437166Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.4:13209 and fully qualified image name: 10.1.0.4:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T13:01:29.5097943Z Starting container: 81d0d0ac5e45_fairsharing.
+2026-02-09T13:01:29.5483589Z Starting watchers and probes.
+2026-02-09T13:01:29.5486608Z Starting metrics collection.
+2026-02-09T13:01:29.5488703Z Container is running.
+2026-02-09T13:01:30.5195011Z Container start method finished after 3352 ms.
+2026-02-09T13:01:36.3599149Z Container has finished running with exit code: 1.
+2026-02-09T13:01:36.3600803Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:01:36.3604285Z Stop and delete container. Retry count = 0
+2026-02-09T13:01:36.3605836Z Stopping container: 81d0d0ac5e45_fairsharing.
+2026-02-09T13:01:36.3809055Z Deleting container: 81d0d0ac5e45_fairsharing. Retry count = 0
+2026-02-09T13:01:36.4586140Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:01:36.4588369Z Container is terminated. Total time elapsed: 98 ms.
+2026-02-09T13:01:36.4589748Z Site container: fairsharing terminated during site startup.
+2026-02-09T13:01:36.4636859Z Site startup probe failed after 5.9313537 seconds.
+2026-02-09T13:01:36.5392158Z Failed to start site. Revert by stopping site.
+2026-02-09T13:01:36.5396342Z Site: fairsharing stopped.
+2026-02-09T13:01:56.9948391Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:01:56.9972430Z Stop and delete container. Retry count = 0
+2026-02-09T13:01:56.9984716Z Stopping container: 8be0c405adee_fairsharing.
+2026-02-09T13:02:02.1130819Z Deleting container: 8be0c405adee_fairsharing. Retry count = 0
+2026-02-09T13:02:02.2101076Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:02:02.2112473Z Container is terminated. Total time elapsed: 5216 ms.
+2026-02-09T13:02:02.2131486Z Site: fairsharing stopped.
+2026-02-09T13:02:24.2562221Z Container start method called.
+2026-02-09T13:02:24.2564401Z Establishing network.
+2026-02-09T13:02:24.2566166Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T13:02:24.4221803Z Image appsvc/python:3.14_20251017.5.tuxprod is pulled from registry 10.1.0.5:13209
+2026-02-09T13:02:24.4223359Z Container is starting.
+2026-02-09T13:02:24.4225337Z Establishing user namespace if not established already.
+2026-02-09T13:02:24.4226778Z Establishing network if not established already.
+2026-02-09T13:02:24.4228320Z Mounting volumes.
+2026-02-09T13:02:24.4232914Z Nested mountpoint 
+2026-02-09T13:02:24.4252860Z Nested mountpoint volatile/logs
+2026-02-09T13:02:24.4266749Z Nested mountpoint 
+2026-02-09T13:02:24.4273793Z Nested mountpoint 
+2026-02-09T13:02:24.4280416Z Nested mountpoint 
+2026-02-09T13:02:24.4793771Z Creating container.
+2026-02-09T13:02:24.4794936Z Creating pipes for streaming container io.
+2026-02-09T13:02:24.4796004Z Creating stdout named pipe at /podr/container/pipe/80044878822a_fairsharing/stdout_c8af4694f54e4569b2d3002ec0fa4bc5.
+2026-02-09T13:02:24.4798211Z Successfully created stdout named pipe at: /podr/container/pipe/80044878822a_fairsharing/stdout_c8af4694f54e4569b2d3002ec0fa4bc5.
+2026-02-09T13:02:24.4799184Z Opening named pipe /podr/container/pipe/80044878822a_fairsharing/stdout_c8af4694f54e4569b2d3002ec0fa4bc5 for reading in non-blocking mode.
+2026-02-09T13:02:24.4800452Z Successfully opened named pipe: /podr/container/pipe/80044878822a_fairsharing/stdout_c8af4694f54e4569b2d3002ec0fa4bc5.
+2026-02-09T13:02:24.4802029Z Successfully removed non-blocking flag from /podr/container/pipe/80044878822a_fairsharing/stdout_c8af4694f54e4569b2d3002ec0fa4bc5.
+2026-02-09T13:02:24.4803249Z Creating stderr named pipe at /podr/container/pipe/80044878822a_fairsharing/stderr_642de896074745e8977e06ba9ecf556f.
+2026-02-09T13:02:24.4810891Z Successfully created stderr named pipe at: /podr/container/pipe/80044878822a_fairsharing/stderr_642de896074745e8977e06ba9ecf556f.
+2026-02-09T13:02:24.4813577Z Opening named pipe /podr/container/pipe/80044878822a_fairsharing/stderr_642de896074745e8977e06ba9ecf556f for reading in non-blocking mode.
+2026-02-09T13:02:24.4815196Z Successfully opened named pipe: /podr/container/pipe/80044878822a_fairsharing/stderr_642de896074745e8977e06ba9ecf556f.
+2026-02-09T13:02:24.4816380Z Successfully removed non-blocking flag from /podr/container/pipe/80044878822a_fairsharing/stderr_642de896074745e8977e06ba9ecf556f.
+2026-02-09T13:02:24.4817937Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T13:02:25.6062360Z Starting container: 80044878822a_fairsharing.
+2026-02-09T13:02:25.6248146Z Starting watchers and probes.
+2026-02-09T13:02:25.6250579Z Starting metrics collection.
+2026-02-09T13:02:25.6328208Z Container is running.
+2026-02-09T13:02:25.6607930Z Container start method finished after 1404 ms.
+2026-02-09T13:02:31.8282113Z Container has finished running with exit code: 1.
+2026-02-09T13:02:31.8283676Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:02:31.8286529Z Stop and delete container. Retry count = 0
+2026-02-09T13:02:31.8302722Z Stopping container: 80044878822a_fairsharing.
+2026-02-09T13:02:31.8513036Z Deleting container: 80044878822a_fairsharing. Retry count = 0
+2026-02-09T13:02:31.9090919Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:02:31.9109106Z Container is terminated. Total time elapsed: 82 ms.
+2026-02-09T13:02:31.9119450Z Site container: fairsharing terminated during site startup.
+2026-02-09T13:02:31.9144256Z Site startup probe failed after 6.25242 seconds.
+2026-02-09T13:02:31.9725319Z Failed to start site. Revert by stopping site.
+2026-02-09T13:02:31.9743610Z Site: fairsharing stopped.
+2026-02-09T13:05:02.1841133Z Container start method called.
+2026-02-09T13:05:02.1843205Z Establishing network.
+2026-02-09T13:05:02.1844670Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T13:05:02.3395471Z Container is starting.
+2026-02-09T13:05:02.3397808Z Establishing user namespace if not established already.
+2026-02-09T13:05:02.3398993Z Establishing network if not established already.
+2026-02-09T13:05:02.3400382Z Mounting volumes.
+2026-02-09T13:05:02.3402144Z Nested mountpoint 
+2026-02-09T13:05:02.3460831Z Nested mountpoint volatile/logs
+2026-02-09T13:05:02.3546669Z Nested mountpoint 
+2026-02-09T13:05:02.3828733Z Nested mountpoint 
+2026-02-09T13:05:02.3835664Z Nested mountpoint 
+2026-02-09T13:05:02.4414037Z Creating container.
+2026-02-09T13:05:02.4427964Z Creating pipes for streaming container io.
+2026-02-09T13:05:02.4432940Z Creating stdout named pipe at /podr/container/pipe/836ab865fd1b_fairsharing/stdout_32b904150a1441869364e33de3bbb828.
+2026-02-09T13:05:02.4435359Z Successfully created stdout named pipe at: /podr/container/pipe/836ab865fd1b_fairsharing/stdout_32b904150a1441869364e33de3bbb828.
+2026-02-09T13:05:02.4436583Z Opening named pipe /podr/container/pipe/836ab865fd1b_fairsharing/stdout_32b904150a1441869364e33de3bbb828 for reading in non-blocking mode.
+2026-02-09T13:05:02.4438082Z Successfully opened named pipe: /podr/container/pipe/836ab865fd1b_fairsharing/stdout_32b904150a1441869364e33de3bbb828.
+2026-02-09T13:05:02.4439415Z Successfully removed non-blocking flag from /podr/container/pipe/836ab865fd1b_fairsharing/stdout_32b904150a1441869364e33de3bbb828.
+2026-02-09T13:05:02.4440831Z Creating stderr named pipe at /podr/container/pipe/836ab865fd1b_fairsharing/stderr_e2acf5d4de8d4f6b8d773f7a5c636db3.
+2026-02-09T13:05:02.4442522Z Successfully created stderr named pipe at: /podr/container/pipe/836ab865fd1b_fairsharing/stderr_e2acf5d4de8d4f6b8d773f7a5c636db3.
+2026-02-09T13:05:02.4443758Z Opening named pipe /podr/container/pipe/836ab865fd1b_fairsharing/stderr_e2acf5d4de8d4f6b8d773f7a5c636db3 for reading in non-blocking mode.
+2026-02-09T13:05:02.4445143Z Successfully opened named pipe: /podr/container/pipe/836ab865fd1b_fairsharing/stderr_e2acf5d4de8d4f6b8d773f7a5c636db3.
+2026-02-09T13:05:02.4446413Z Successfully removed non-blocking flag from /podr/container/pipe/836ab865fd1b_fairsharing/stderr_e2acf5d4de8d4f6b8d773f7a5c636db3.
+2026-02-09T13:05:02.4447727Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T13:05:02.6140607Z Starting container: 836ab865fd1b_fairsharing.
+2026-02-09T13:05:02.6327606Z Starting watchers and probes.
+2026-02-09T13:05:02.6346659Z Starting metrics collection.
+2026-02-09T13:05:02.6348371Z Container is running.
+2026-02-09T13:05:02.6852975Z Container start method finished after 500 ms.
+2026-02-09T13:05:08.3679673Z Container has finished running with exit code: 1.
+2026-02-09T13:05:08.3681031Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:05:08.3685418Z Stop and delete container. Retry count = 0
+2026-02-09T13:05:08.3699283Z Stopping container: 836ab865fd1b_fairsharing.
+2026-02-09T13:05:08.3842480Z Deleting container: 836ab865fd1b_fairsharing. Retry count = 0
+2026-02-09T13:05:08.8655220Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:05:08.8661185Z Container is terminated. Total time elapsed: 497 ms.
+2026-02-09T13:05:08.8666218Z Site container: fairsharing terminated during site startup.
+2026-02-09T13:05:08.8701770Z Site startup probe failed after 6.1810914 seconds.
+2026-02-09T13:05:08.9261776Z Failed to start site. Revert by stopping site.
+2026-02-09T13:05:08.9264841Z Site: fairsharing stopped.
+2026-02-09T13:05:34.5666687Z Container start method called.
+2026-02-09T13:05:34.5696548Z Establishing network.
+2026-02-09T13:05:34.5703068Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T13:05:35.6287537Z Container is starting.
+2026-02-09T13:05:35.6290070Z Establishing user namespace if not established already.
+2026-02-09T13:05:35.6291358Z Establishing network if not established already.
+2026-02-09T13:05:35.6292588Z Mounting volumes.
+2026-02-09T13:05:35.6294097Z Nested mountpoint 
+2026-02-09T13:05:35.6382254Z Nested mountpoint volatile/logs
+2026-02-09T13:05:35.6399546Z Nested mountpoint 
+2026-02-09T13:05:35.6405661Z Nested mountpoint 
+2026-02-09T13:05:35.6412576Z Nested mountpoint 
+2026-02-09T13:05:35.7473939Z Creating container.
+2026-02-09T13:05:35.7475094Z Creating pipes for streaming container io.
+2026-02-09T13:05:35.7476283Z Creating stdout named pipe at /podr/container/pipe/513a43514c54_fairsharing/stdout_e38d1695af134972bbe9fcf38f2c1882.
+2026-02-09T13:05:35.7478364Z Successfully created stdout named pipe at: /podr/container/pipe/513a43514c54_fairsharing/stdout_e38d1695af134972bbe9fcf38f2c1882.
+2026-02-09T13:05:35.7479350Z Opening named pipe /podr/container/pipe/513a43514c54_fairsharing/stdout_e38d1695af134972bbe9fcf38f2c1882 for reading in non-blocking mode.
+2026-02-09T13:05:35.7480636Z Successfully opened named pipe: /podr/container/pipe/513a43514c54_fairsharing/stdout_e38d1695af134972bbe9fcf38f2c1882.
+2026-02-09T13:05:35.7481696Z Successfully removed non-blocking flag from /podr/container/pipe/513a43514c54_fairsharing/stdout_e38d1695af134972bbe9fcf38f2c1882.
+2026-02-09T13:05:35.7482834Z Creating stderr named pipe at /podr/container/pipe/513a43514c54_fairsharing/stderr_b141552b51c740239e5453d15b40fc9a.
+2026-02-09T13:05:35.7484446Z Successfully created stderr named pipe at: /podr/container/pipe/513a43514c54_fairsharing/stderr_b141552b51c740239e5453d15b40fc9a.
+2026-02-09T13:05:35.7485536Z Opening named pipe /podr/container/pipe/513a43514c54_fairsharing/stderr_b141552b51c740239e5453d15b40fc9a for reading in non-blocking mode.
+2026-02-09T13:05:35.7486769Z Successfully opened named pipe: /podr/container/pipe/513a43514c54_fairsharing/stderr_b141552b51c740239e5453d15b40fc9a.
+2026-02-09T13:05:35.7487853Z Successfully removed non-blocking flag from /podr/container/pipe/513a43514c54_fairsharing/stderr_b141552b51c740239e5453d15b40fc9a.
+2026-02-09T13:05:35.7489045Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.4:13209 and fully qualified image name: 10.1.0.4:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T13:05:35.8922238Z Starting container: 513a43514c54_fairsharing.
+2026-02-09T13:05:35.9139815Z Starting watchers and probes.
+2026-02-09T13:05:35.9156763Z Starting metrics collection.
+2026-02-09T13:05:35.9187463Z Container is running.
+2026-02-09T13:05:35.9557445Z Container start method finished after 1388 ms.
+2026-02-09T13:05:41.6903669Z Container has finished running with exit code: 1.
+2026-02-09T13:05:41.6905009Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:05:41.6907768Z Stop and delete container. Retry count = 0
+2026-02-09T13:05:41.6909129Z Stopping container: 513a43514c54_fairsharing.
+2026-02-09T13:05:41.7049044Z Deleting container: 513a43514c54_fairsharing. Retry count = 0
+2026-02-09T13:05:42.7766103Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:05:42.7767929Z Container is terminated. Total time elapsed: 1086 ms.
+2026-02-09T13:05:42.7769482Z Site container: fairsharing terminated during site startup.
+2026-02-09T13:05:42.7800438Z Site startup probe failed after 6.8238127 seconds.
+2026-02-09T13:05:42.8365937Z Failed to start site. Revert by stopping site.
+2026-02-09T13:05:42.8382021Z Site: fairsharing stopped.
+2026-02-09T13:06:03.3324222Z Container start method called.
+2026-02-09T13:06:03.3339355Z Establishing network.
+2026-02-09T13:06:03.3341112Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T13:06:03.4315207Z Container is starting.
+2026-02-09T13:06:03.4317421Z Establishing user namespace if not established already.
+2026-02-09T13:06:03.4318765Z Establishing network if not established already.
+2026-02-09T13:06:03.4320637Z Mounting volumes.
+2026-02-09T13:06:03.4322552Z Nested mountpoint 
+2026-02-09T13:06:03.4348753Z Nested mountpoint volatile/logs
+2026-02-09T13:06:03.4388398Z Nested mountpoint 
+2026-02-09T13:06:03.4419613Z Nested mountpoint 
+2026-02-09T13:06:03.4449128Z Nested mountpoint 
+2026-02-09T13:06:03.5154364Z Creating container.
+2026-02-09T13:06:03.5155619Z Creating pipes for streaming container io.
+2026-02-09T13:06:03.5156602Z Creating stdout named pipe at /podr/container/pipe/15afcf976bf9_fairsharing/stdout_515a69883b734758b2152a129f419cb4.
+2026-02-09T13:06:03.5158059Z Successfully created stdout named pipe at: /podr/container/pipe/15afcf976bf9_fairsharing/stdout_515a69883b734758b2152a129f419cb4.
+2026-02-09T13:06:03.5158735Z Opening named pipe /podr/container/pipe/15afcf976bf9_fairsharing/stdout_515a69883b734758b2152a129f419cb4 for reading in non-blocking mode.
+2026-02-09T13:06:03.5159501Z Successfully opened named pipe: /podr/container/pipe/15afcf976bf9_fairsharing/stdout_515a69883b734758b2152a129f419cb4.
+2026-02-09T13:06:03.5160097Z Successfully removed non-blocking flag from /podr/container/pipe/15afcf976bf9_fairsharing/stdout_515a69883b734758b2152a129f419cb4.
+2026-02-09T13:06:03.5160800Z Creating stderr named pipe at /podr/container/pipe/15afcf976bf9_fairsharing/stderr_a861069ad9b34eaabacd51e4bda8d56d.
+2026-02-09T13:06:03.5161952Z Successfully created stderr named pipe at: /podr/container/pipe/15afcf976bf9_fairsharing/stderr_a861069ad9b34eaabacd51e4bda8d56d.
+2026-02-09T13:06:03.5162521Z Opening named pipe /podr/container/pipe/15afcf976bf9_fairsharing/stderr_a861069ad9b34eaabacd51e4bda8d56d for reading in non-blocking mode.
+2026-02-09T13:06:03.5163295Z Successfully opened named pipe: /podr/container/pipe/15afcf976bf9_fairsharing/stderr_a861069ad9b34eaabacd51e4bda8d56d.
+2026-02-09T13:06:03.5163878Z Successfully removed non-blocking flag from /podr/container/pipe/15afcf976bf9_fairsharing/stderr_a861069ad9b34eaabacd51e4bda8d56d.
+2026-02-09T13:06:03.5164495Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.4:13209 and fully qualified image name: 10.1.0.4:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T13:06:03.7034895Z Starting container: 15afcf976bf9_fairsharing.
+2026-02-09T13:06:03.7235379Z Starting watchers and probes.
+2026-02-09T13:06:03.7249141Z Starting metrics collection.
+2026-02-09T13:06:03.7257621Z Container is running.
+2026-02-09T13:06:03.7540504Z Container start method finished after 420 ms.
+2026-02-09T13:06:09.1114263Z Container has finished running with exit code: 1.
+2026-02-09T13:06:09.1124260Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:06:09.1127172Z Stop and delete container. Retry count = 0
+2026-02-09T13:06:09.1128699Z Stopping container: 15afcf976bf9_fairsharing.
+2026-02-09T13:06:09.1258815Z Deleting container: 15afcf976bf9_fairsharing. Retry count = 0
+2026-02-09T13:06:09.1846361Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:06:09.1848563Z Container is terminated. Total time elapsed: 72 ms.
+2026-02-09T13:06:09.1850004Z Site container: fairsharing terminated during site startup.
+2026-02-09T13:06:09.1882328Z Site startup probe failed after 5.4326763 seconds.
+2026-02-09T13:06:09.2561689Z Failed to start site. Revert by stopping site.
+2026-02-09T13:06:09.2565093Z Site: fairsharing stopped.
+2026-02-09T13:07:12.6542040Z Container start method called.
+2026-02-09T13:07:12.6543658Z Establishing network.
+2026-02-09T13:07:12.6544967Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T13:07:12.7787236Z Container is starting.
+2026-02-09T13:07:12.7789424Z Establishing user namespace if not established already.
+2026-02-09T13:07:12.7790583Z Establishing network if not established already.
+2026-02-09T13:07:12.7792122Z Mounting volumes.
+2026-02-09T13:07:12.7794295Z Nested mountpoint 
+2026-02-09T13:07:12.7802159Z Nested mountpoint volatile/logs
+2026-02-09T13:07:12.7823359Z Nested mountpoint 
+2026-02-09T13:07:12.7869235Z Nested mountpoint 
+2026-02-09T13:07:12.7882162Z Nested mountpoint 
+2026-02-09T13:07:12.8376532Z Creating container.
+2026-02-09T13:07:12.8377888Z Creating pipes for streaming container io.
+2026-02-09T13:07:12.8401684Z Creating stdout named pipe at /podr/container/pipe/e143ace5971b_fairsharing/stdout_04dcb58b2c5e44c9a90ef298ddc9ea66.
+2026-02-09T13:07:12.8404065Z Successfully created stdout named pipe at: /podr/container/pipe/e143ace5971b_fairsharing/stdout_04dcb58b2c5e44c9a90ef298ddc9ea66.
+2026-02-09T13:07:12.8405178Z Opening named pipe /podr/container/pipe/e143ace5971b_fairsharing/stdout_04dcb58b2c5e44c9a90ef298ddc9ea66 for reading in non-blocking mode.
+2026-02-09T13:07:12.8406382Z Successfully opened named pipe: /podr/container/pipe/e143ace5971b_fairsharing/stdout_04dcb58b2c5e44c9a90ef298ddc9ea66.
+2026-02-09T13:07:12.8407427Z Successfully removed non-blocking flag from /podr/container/pipe/e143ace5971b_fairsharing/stdout_04dcb58b2c5e44c9a90ef298ddc9ea66.
+2026-02-09T13:07:12.8408783Z Creating stderr named pipe at /podr/container/pipe/e143ace5971b_fairsharing/stderr_fab56269ac8a4cebb2830c37b3a61eac.
+2026-02-09T13:07:12.8410414Z Successfully created stderr named pipe at: /podr/container/pipe/e143ace5971b_fairsharing/stderr_fab56269ac8a4cebb2830c37b3a61eac.
+2026-02-09T13:07:12.8411613Z Opening named pipe /podr/container/pipe/e143ace5971b_fairsharing/stderr_fab56269ac8a4cebb2830c37b3a61eac for reading in non-blocking mode.
+2026-02-09T13:07:12.8413028Z Successfully opened named pipe: /podr/container/pipe/e143ace5971b_fairsharing/stderr_fab56269ac8a4cebb2830c37b3a61eac.
+2026-02-09T13:07:12.8414232Z Successfully removed non-blocking flag from /podr/container/pipe/e143ace5971b_fairsharing/stderr_fab56269ac8a4cebb2830c37b3a61eac.
+2026-02-09T13:07:12.8415455Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T13:07:16.0305310Z Starting container: e143ace5971b_fairsharing.
+2026-02-09T13:07:16.0509487Z Starting watchers and probes.
+2026-02-09T13:07:16.0511989Z Starting metrics collection.
+2026-02-09T13:07:16.0513505Z Container is running.
+2026-02-09T13:07:16.0705063Z Container start method finished after 3416 ms.
+2026-02-09T13:07:23.6156229Z Container has finished running with exit code: 1.
+2026-02-09T13:07:23.6158186Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:07:23.6169148Z Stop and delete container. Retry count = 0
+2026-02-09T13:07:23.6170969Z Stopping container: e143ace5971b_fairsharing.
+2026-02-09T13:07:23.6693773Z Deleting container: e143ace5971b_fairsharing. Retry count = 0
+2026-02-09T13:07:23.9929697Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:07:23.9931549Z Container is terminated. Total time elapsed: 377 ms.
+2026-02-09T13:07:23.9932852Z Site container: fairsharing terminated during site startup.
+2026-02-09T13:07:23.9954685Z Site startup probe failed after 7.9239449 seconds.
+2026-02-09T13:07:24.0366725Z Failed to start site. Revert by stopping site.
+2026-02-09T13:07:24.0369715Z Site: fairsharing stopped.
+2026-02-09T13:07:24.6609209Z Container start method called.
+2026-02-09T13:07:24.6614580Z Establishing network.
+2026-02-09T13:07:24.6616142Z Pulling image: appsvc/python:3.14_20251017.5.tuxprod.
+2026-02-09T13:07:24.7579418Z Container is starting.
+2026-02-09T13:07:24.7581769Z Establishing user namespace if not established already.
+2026-02-09T13:07:24.7583105Z Establishing network if not established already.
+2026-02-09T13:07:24.7584641Z Mounting volumes.
+2026-02-09T13:07:24.7586119Z Nested mountpoint 
+2026-02-09T13:07:24.7600734Z Nested mountpoint volatile/logs
+2026-02-09T13:07:24.7621140Z Nested mountpoint 
+2026-02-09T13:07:24.7892365Z Nested mountpoint 
+2026-02-09T13:07:24.7908649Z Nested mountpoint 
+2026-02-09T13:07:24.8358938Z Creating container.
+2026-02-09T13:07:24.8360024Z Creating pipes for streaming container io.
+2026-02-09T13:07:24.8361444Z Creating stdout named pipe at /podr/container/pipe/5e845a1d3719_fairsharing/stdout_3955ce6d3310441589a6d7ec8d2fe22f.
+2026-02-09T13:07:24.8363585Z Successfully created stdout named pipe at: /podr/container/pipe/5e845a1d3719_fairsharing/stdout_3955ce6d3310441589a6d7ec8d2fe22f.
+2026-02-09T13:07:24.8365041Z Opening named pipe /podr/container/pipe/5e845a1d3719_fairsharing/stdout_3955ce6d3310441589a6d7ec8d2fe22f for reading in non-blocking mode.
+2026-02-09T13:07:24.8366415Z Successfully opened named pipe: /podr/container/pipe/5e845a1d3719_fairsharing/stdout_3955ce6d3310441589a6d7ec8d2fe22f.
+2026-02-09T13:07:24.8369101Z Successfully removed non-blocking flag from /podr/container/pipe/5e845a1d3719_fairsharing/stdout_3955ce6d3310441589a6d7ec8d2fe22f.
+2026-02-09T13:07:24.8370605Z Creating stderr named pipe at /podr/container/pipe/5e845a1d3719_fairsharing/stderr_8ba718953d944e01bc545b1e70103f56.
+2026-02-09T13:07:24.8372221Z Successfully created stderr named pipe at: /podr/container/pipe/5e845a1d3719_fairsharing/stderr_8ba718953d944e01bc545b1e70103f56.
+2026-02-09T13:07:24.8373442Z Opening named pipe /podr/container/pipe/5e845a1d3719_fairsharing/stderr_8ba718953d944e01bc545b1e70103f56 for reading in non-blocking mode.
+2026-02-09T13:07:24.8374753Z Successfully opened named pipe: /podr/container/pipe/5e845a1d3719_fairsharing/stderr_8ba718953d944e01bc545b1e70103f56.
+2026-02-09T13:07:24.8375864Z Successfully removed non-blocking flag from /podr/container/pipe/5e845a1d3719_fairsharing/stderr_8ba718953d944e01bc545b1e70103f56.
+2026-02-09T13:07:24.8377047Z Creating container with image: appsvc/python:3.14_20251017.5.tuxprod from registry: 10.1.0.5:13209 and fully qualified image name: 10.1.0.5:13209/appsvc/python:3.14_20251017.5.tuxprod
+2026-02-09T13:07:25.3355764Z Starting container: 5e845a1d3719_fairsharing.
+2026-02-09T13:07:25.3611111Z Starting watchers and probes.
+2026-02-09T13:07:25.3625027Z Starting metrics collection.
+2026-02-09T13:07:25.3656563Z Container is running.
+2026-02-09T13:07:25.3836063Z Container start method finished after 722 ms.
+2026-02-09T13:07:32.8673888Z Container has finished running with exit code: 1.
+2026-02-09T13:07:32.8676471Z Container is terminating. Grace period: 5 seconds.
+2026-02-09T13:07:32.8680488Z Stop and delete container. Retry count = 0
+2026-02-09T13:07:32.8682994Z Stopping container: 5e845a1d3719_fairsharing.
+2026-02-09T13:07:33.6049251Z Deleting container: 5e845a1d3719_fairsharing. Retry count = 0
+2026-02-09T13:07:33.6582475Z Container spec TerminationMessagePolicy  path 
+2026-02-09T13:07:33.6584556Z Container is terminated. Total time elapsed: 790 ms.
+2026-02-09T13:07:33.6586016Z Site container: fairsharing terminated during site startup.
+2026-02-09T13:07:33.6622020Z Site startup probe failed after 8.2764515 seconds.
+2026-02-09T13:07:33.7099359Z Failed to start site. Revert by stopping site.
+2026-02-09T13:07:33.7103193Z Site: fairsharing stopped.
