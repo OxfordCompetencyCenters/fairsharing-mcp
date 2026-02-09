@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 
 from agents import Agent, Runner
 from agents.mcp import MCPServerStdio
@@ -146,15 +147,26 @@ class OpenAIAgentsProvider(BaseLLMProvider):
         self._input_list: list = []
 
     async def setup(self) -> None:
+        # Project root: this file is at clients/providers/openai_agents.py
+        project_root = Path(__file__).resolve().parent.parent.parent
+        src_dir = str(project_root / "src")
+
         # Build a minimal env for the MCP subprocess
         subprocess_env = {
             "FAIRSHARING_API_KEY": self.config.fairsharing_api_key,
-            "PATH": os.path.dirname(sys.executable) + ":" + os.environ.get("PATH", "/usr/bin:/bin"),
+            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "PYTHONPATH": src_dir,
         }
+
+        # Resolve command: if set to "python", use the exact current
+        # interpreter so the subprocess inherits virtualenv packages.
+        command = self.config.mcp_server_command
+        if command in ("python", "python3"):
+            command = sys.executable
 
         self._mcp_server = MCPServerStdio(
             params={
-                "command": self.config.mcp_server_command,
+                "command": command,
                 "args": self.config.mcp_server_args,
                 "env": subprocess_env,
             },
