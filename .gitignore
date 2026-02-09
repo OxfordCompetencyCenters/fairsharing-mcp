@@ -1,0 +1,32 @@
+# Environment and secrets
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# Tool caches
+.pytest_cache/
+.ruff_cache/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Claude Code local settings
+.claude/
+
+# Temp files
+~$*
