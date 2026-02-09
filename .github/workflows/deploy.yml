@@ -3,7 +3,7 @@ name: Deploy to Azure App Service
 on:
   push:
     branches:
-      - main  # change to your branch name if different
+      - main
 
 jobs:
   build-and-deploy:
@@ -23,20 +23,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Zip artifact for deployment
-        run: |
-          zip -r deploy.zip . \
-            -x "*.git*" \
-            -x "__pycache__/*" \
-            -x "*.pyc" \
-            -x ".env" \
-            -x ".venv/*" \
-            -x "tests/*" \
-            -x "logs/*"
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: fairsharing
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-          package: deploy.zip
+          package: .
+
+      - name: Azure logout
+        run: az logout
