@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import sys
 
 from agents import Agent, Runner
 from agents.mcp import MCPServerStdio
@@ -148,7 +149,7 @@ class OpenAIAgentsProvider(BaseLLMProvider):
         # Build a minimal env for the MCP subprocess
         subprocess_env = {
             "FAIRSHARING_API_KEY": self.config.fairsharing_api_key,
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+            "PATH": os.path.dirname(sys.executable) + ":" + os.environ.get("PATH", "/usr/bin:/bin"),
         }
 
         self._mcp_server = MCPServerStdio(
