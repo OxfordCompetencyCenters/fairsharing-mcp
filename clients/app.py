@@ -67,34 +67,21 @@ def _init_provider() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Sidebar
+# Header bar (Clear button top-right)
 # ---------------------------------------------------------------------------
 
-def _render_sidebar() -> None:
-    with st.sidebar:
-        st.header("FAIRsharing Assistant")
-        st.caption(
-            "Chat with the FAIRsharing knowledge graph \u2014 "
-            "standards, databases & policies for the life sciences."
-        )
-        if "model_name" in st.session_state:
-            st.info(f"Model: **{st.session_state.model_name}**")
-
-        if st.button("Clear conversation"):
+def _render_header() -> None:
+    col_title, col_btn = st.columns([8, 1])
+    with col_title:
+        st.title("FAIRsharing Assistant")
+    with col_btn:
+        st.markdown("<div style='height:0.5rem'></div>", unsafe_allow_html=True)
+        if st.button("Clear", type="secondary"):
             st.session_state.messages = []
             st.session_state.history = ConversationHistory()
             if "provider" in st.session_state:
                 st.session_state.provider.clear_conversation()
             st.rerun()
-
-        st.divider()
-        st.markdown(
-            "**Example queries**\n"
-            "- How many genomics databases are in FAIRsharing?\n"
-            "- Compare FAIR indicators for BioStudies vs ArrayExpress\n"
-            "- What policies mandate data sharing in the UK?\n"
-            "- Show the standard adoption landscape for proteomics\n"
-        )
 
 
 # ---------------------------------------------------------------------------
@@ -102,8 +89,6 @@ def _render_sidebar() -> None:
 # ---------------------------------------------------------------------------
 
 def _render_chat() -> None:
-    st.title("FAIRsharing Assistant")
-
     if "messages" not in st.session_state:
         st.session_state.messages = []
 
@@ -140,6 +125,12 @@ def _render_chat() -> None:
 # Main
 # ---------------------------------------------------------------------------
 
+# Hide the sidebar entirely
+st.markdown(
+    "<style>[data-testid='stSidebar']{display:none}</style>",
+    unsafe_allow_html=True,
+)
+
 _init_provider()
-_render_sidebar()
+_render_header()
 _render_chat()
