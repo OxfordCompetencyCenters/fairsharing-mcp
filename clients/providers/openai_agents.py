@@ -151,12 +151,11 @@ class OpenAIAgentsProvider(BaseLLMProvider):
         project_root = Path(__file__).resolve().parent.parent.parent
         src_dir = str(project_root / "src")
 
-        # Build a minimal env for the MCP subprocess
-        subprocess_env = {
-            "FAIRSHARING_API_KEY": self.config.fairsharing_api_key,
-            "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
-            "PYTHONPATH": src_dir,
-        }
+        # Inherit the full parent environment so the subprocess has HOME,
+        # VIRTUAL_ENV, TMPDIR, etc.  Override only what we need.
+        subprocess_env = os.environ.copy()
+        subprocess_env["FAIRSHARING_API_KEY"] = self.config.fairsharing_api_key
+        subprocess_env["PYTHONPATH"] = src_dir
 
         # Resolve command: if set to "python", use the exact current
         # interpreter so the subprocess inherits virtualenv packages.
