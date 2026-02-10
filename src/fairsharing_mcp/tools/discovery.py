@@ -3,6 +3,10 @@
 import json
 import logging
 from collections import Counter
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingAuthError, FAIRsharingError
@@ -25,98 +29,116 @@ logger = logging.getLogger(__name__)
 
 # Tool name → short description for keyword-based recommendation (from TOOLS.md).
 TOOL_CATALOG: list[tuple[str, str]] = [
-    ("search_records", "Search and filter records"),
-    ("count_records", "Search and filter records"),
-    ("advanced_filter_records", "Search and filter records"),
-    ("count_fair_records", "Search and filter records"),
-    ("get_record", "Get one record"),
-    ("get_record_types", "Get one record"),
-    ("get_record_graph", "Record graph structure, hubs, neighbors"),
-    ("find_graph_hubs", "Record graph structure, hubs, neighbors"),
-    ("analyze_record_ecosystem", "Record graph associations by relationship and registry"),
-    ("find_record_connections", "Path within one graph"),
-    ("find_semantic_path", "Weighted path in one graph"),
-    ("find_cross_graph_path", "Path between two records by merging their graphs"),
-    ("find_path_across_graphs", "Path across multiple merged neighborhood graphs"),
-    ("find_multiple_paths", "Paths and connections"),
-    ("compute_pagerank", "Graph centrality and communities"),
-    ("compute_betweenness_centrality", "Graph centrality and communities"),
-    ("detect_communities", "Graph centrality and communities"),
-    ("analyze_graph_comprehensive", "Full graph analysis: PageRank, communities, betweenness"),
-    ("find_dependency_clusters", "Graph analysis"),
-    ("analyze_path_criticality", "Graph analysis"),
-    ("find_similar_records", "Similar or related records"),
-    ("suggest_related_resources", "Similar or related records"),
-    ("get_policy_details", "Policies"),
-    ("get_policy_quality_profile", "Policies"),
-    ("compare_policies_by_country", "Policies"),
-    ("analyze_policy_mandates", "Policies"),
-    ("trace_policy_impact", "Policies"),
-    ("find_policy_gaps", "Policies"),
-    ("detect_policy_conflicts", "Policies"),
-    ("find_standards_for_database", "Standards and databases"),
-    ("find_databases_by_standard", "Databases implementing a standard"),
-    ("find_databases_for_standard", "Standards and databases"),
-    ("analyze_standard_adoption", "Standards and databases"),
-    ("compute_maturity_index", "Standards and databases"),
-    ("find_emerging_standards", "Standards and databases"),
-    ("find_endorsed_but_unadopted", "Standards and databases"),
-    ("compare_records", "Compare records or landscapes"),
-    ("compare_multiple_records", "Compare records or landscapes"),
-    ("compare_subject_landscapes", "Compare records or landscapes"),
-    ("compare_collections", "Compare records or landscapes"),
-    ("check_policy_database_compliance", "Compare and compliance"),
-    ("find_compliant_standards", "Compare and compliance"),
-    ("compare_databases_quality", "Compare databases"),
-    ("analyze_deprecation_impact", "Deprecation"),
-    ("find_deprecated_resources", "Deprecation"),
-    ("assess_database_indicators", "FAIR quality for databases"),
-    ("get_database_quality_profile", "FAIR quality for databases"),
-    ("rank_databases_by_quality", "FAIR quality for databases"),
-    ("find_orphan_records", "Discovery: records missing connections"),
-    ("suggest_graph_starting_points", "Discovery: best records for graph analysis"),
-    ("search_publications", "Discovery: search publications"),
-    ("get_registries", "Discovery: registry types"),
-    ("list_licences", "Discovery: list licences"),
-    ("get_statistics", "Discovery: platform statistics"),
-    ("list_subjects", "Taxonomy: subjects"),
-    ("search_subjects", "Taxonomy: subjects"),
-    ("get_subject", "Taxonomy: subjects"),
-    ("list_domains", "Taxonomy: domains"),
-    ("search_domains", "Taxonomy: domains"),
-    ("get_domain", "Taxonomy: domains"),
-    ("list_taxonomies", "Taxonomy"),
-    ("search_taxonomies", "Taxonomy"),
-    ("browse_subject_hierarchy", "Taxonomy"),
-    ("analyze_subject_landscape", "Taxonomy"),
-    ("analyze_taxonomy_landscape", "Taxonomy"),
-    ("list_organisations", "Organisations and countries"),
-    ("search_organisations", "Organisations and countries"),
-    ("list_countries", "Organisations and countries"),
-    ("analyze_country_landscape", "Organisations and countries"),
-    ("analyze_regional_distribution", "Organisations and countries"),
-    ("audit_metadata_completeness", "Curator: metadata audit"),
-    ("batch_audit_metadata", "Curator: batch metadata audit"),
-    ("get_relationship_types", "Relationship types"),
-    ("get_collection_contents", "Collection contents"),
-    ("trace_influence_chain", "Influence and dependencies"),
-    ("detect_circular_dependencies", "Circular dependencies"),
-    ("filter_records_by_date", "Filter by date"),
-    ("get_standard_quality_profile", "Standard quality profile"),
-    ("search_by_doi", "Look up record by DOI or FAIRsharing URL"),
-    ("check_api_health", "API connectivity, auth, and health check"),
-    ("explain_fairsharing", "Reference docs: overview, indicators, workflows, scoring"),
-    ("get_unified_quality_score", "Normalized 0-100 quality score for any record type"),
-    ("compare_unified_quality", "Compare records of any type on a common quality scale"),
-    ("assess_dmp_compliance", "Single-call DMP compliance: policy + databases -> report"),
-    ("analyze_transitive_impact", "Multi-hop deprecation impact through the graph"),
-    ("suggest_workflow", "Step-by-step tool workflow for common analytical tasks"),
-    ("get_records_batch", "Fetch multiple records by ID list in one call"),
-    ("find_referencing_records", "Reverse lookup: who implements/recommends/collects this record?"),
-    ("explore_expanded_graph", "Multi-hop expanded graph analysis from a seed record"),
-    ("build_topic_graph", "Topic-level graph by searching records and merging neighborhoods"),
+    ("fairsharing_search_records", "Search and filter records"),
+    ("fairsharing_count_records", "Search and filter records"),
+    ("fairsharing_advanced_filter_records", "Search and filter records"),
+    ("fairsharing_count_fair_records", "Search and filter records"),
+    ("fairsharing_get_record", "Get one record"),
+    ("fairsharing_get_record_types", "Get one record"),
+    ("fairsharing_get_record_graph", "Record graph structure, hubs, neighbors"),
+    ("fairsharing_find_graph_hubs", "Record graph structure, hubs, neighbors"),
     (
-        "get_comprehensive_quality_profile",
+        "fairsharing_analyze_record_ecosystem",
+        "Record graph associations by relationship and registry",
+    ),
+    ("fairsharing_find_record_connections", "Path within one graph"),
+    ("fairsharing_find_semantic_path", "Weighted path in one graph"),
+    ("fairsharing_find_cross_graph_path", "Path between two records by merging their graphs"),
+    ("fairsharing_find_path_across_graphs", "Path across multiple merged neighborhood graphs"),
+    ("fairsharing_find_multiple_paths", "Paths and connections"),
+    ("fairsharing_compute_pagerank", "Graph centrality and communities"),
+    ("fairsharing_compute_betweenness_centrality", "Graph centrality and communities"),
+    ("fairsharing_detect_communities", "Graph centrality and communities"),
+    (
+        "fairsharing_analyze_graph_comprehensive",
+        "Full graph analysis: PageRank, communities, betweenness",
+    ),
+    ("fairsharing_find_dependency_clusters", "Graph analysis"),
+    ("fairsharing_analyze_path_criticality", "Graph analysis"),
+    ("fairsharing_find_similar_records", "Similar or related records"),
+    ("fairsharing_suggest_related_resources", "Similar or related records"),
+    ("fairsharing_get_policy_details", "Policies"),
+    ("fairsharing_get_policy_quality_profile", "Policies"),
+    ("fairsharing_compare_policies_by_country", "Policies"),
+    ("fairsharing_analyze_policy_mandates", "Policies"),
+    ("fairsharing_trace_policy_impact", "Policies"),
+    ("fairsharing_find_policy_gaps", "Policies"),
+    ("fairsharing_detect_policy_conflicts", "Policies"),
+    ("fairsharing_find_standards_for_database", "Standards and databases"),
+    ("fairsharing_find_databases_by_standard", "Databases implementing a standard"),
+    ("fairsharing_find_databases_for_standard", "Standards and databases"),
+    ("fairsharing_analyze_standard_adoption", "Standards and databases"),
+    ("fairsharing_compute_maturity_index", "Standards and databases"),
+    ("fairsharing_find_emerging_standards", "Standards and databases"),
+    ("fairsharing_find_endorsed_but_unadopted", "Standards and databases"),
+    ("fairsharing_compare_records", "Compare records or landscapes"),
+    ("fairsharing_compare_multiple_records", "Compare records or landscapes"),
+    ("fairsharing_compare_subject_landscapes", "Compare records or landscapes"),
+    ("fairsharing_compare_collections", "Compare records or landscapes"),
+    ("fairsharing_check_policy_database_compliance", "Compare and compliance"),
+    ("fairsharing_find_compliant_standards", "Compare and compliance"),
+    ("fairsharing_compare_databases_quality", "Compare databases"),
+    ("fairsharing_analyze_deprecation_impact", "Deprecation"),
+    ("fairsharing_find_deprecated_resources", "Deprecation"),
+    ("fairsharing_assess_database_indicators", "FAIR quality for databases"),
+    ("fairsharing_get_database_quality_profile", "FAIR quality for databases"),
+    ("fairsharing_rank_databases_by_quality", "FAIR quality for databases"),
+    ("fairsharing_find_orphan_records", "Discovery: records missing connections"),
+    ("fairsharing_suggest_graph_starting_points", "Discovery: best records for graph analysis"),
+    ("fairsharing_search_publications", "Discovery: search publications"),
+    ("fairsharing_get_registries", "Discovery: registry types"),
+    ("fairsharing_list_licences", "Discovery: list licences"),
+    ("fairsharing_get_statistics", "Discovery: platform statistics"),
+    ("fairsharing_list_subjects", "Taxonomy: subjects"),
+    ("fairsharing_search_subjects", "Taxonomy: subjects"),
+    ("fairsharing_get_subject", "Taxonomy: subjects"),
+    ("fairsharing_list_domains", "Taxonomy: domains"),
+    ("fairsharing_search_domains", "Taxonomy: domains"),
+    ("fairsharing_get_domain", "Taxonomy: domains"),
+    ("fairsharing_list_taxonomies", "Taxonomy"),
+    ("fairsharing_search_taxonomies", "Taxonomy"),
+    ("fairsharing_browse_subject_hierarchy", "Taxonomy"),
+    ("fairsharing_analyze_subject_landscape", "Taxonomy"),
+    ("fairsharing_analyze_taxonomy_landscape", "Taxonomy"),
+    ("fairsharing_list_organisations", "Organisations and countries"),
+    ("fairsharing_search_organisations", "Organisations and countries"),
+    ("fairsharing_list_countries", "Organisations and countries"),
+    ("fairsharing_analyze_country_landscape", "Organisations and countries"),
+    ("fairsharing_analyze_regional_distribution", "Organisations and countries"),
+    ("fairsharing_audit_metadata_completeness", "Curator: metadata audit"),
+    ("fairsharing_batch_audit_metadata", "Curator: batch metadata audit"),
+    ("fairsharing_get_relationship_types", "Relationship types"),
+    ("fairsharing_get_collection_contents", "Collection contents"),
+    ("fairsharing_trace_influence_chain", "Influence and dependencies"),
+    ("fairsharing_detect_circular_dependencies", "Circular dependencies"),
+    ("fairsharing_filter_records_by_date", "Filter by date"),
+    ("fairsharing_get_standard_quality_profile", "Standard quality profile"),
+    ("fairsharing_search_by_doi", "Look up record by DOI or FAIRsharing URL"),
+    ("fairsharing_check_api_health", "API connectivity, auth, and health check"),
+    ("fairsharing_explain_fairsharing", "Reference docs: overview, indicators, workflows, scoring"),
+    ("fairsharing_get_unified_quality_score", "Normalized 0-100 quality score for any record type"),
+    (
+        "fairsharing_compare_unified_quality",
+        "Compare records of any type on a common quality scale",
+    ),
+    (
+        "fairsharing_assess_dmp_compliance",
+        "Single-call DMP compliance: policy + databases -> report",
+    ),
+    ("fairsharing_analyze_transitive_impact", "Multi-hop deprecation impact through the graph"),
+    ("fairsharing_suggest_workflow", "Step-by-step tool workflow for common analytical tasks"),
+    ("fairsharing_get_records_batch", "Fetch multiple records by ID list in one call"),
+    (
+        "fairsharing_find_referencing_records",
+        "Reverse lookup: who implements/recommends/collects this record?",
+    ),
+    ("fairsharing_explore_expanded_graph", "Multi-hop expanded graph analysis from a seed record"),
+    (
+        "fairsharing_build_topic_graph",
+        "Topic-level graph by searching records and merging neighborhoods",
+    ),
+    (
+        "fairsharing_get_comprehensive_quality_profile",
         "Detailed quality scoring with domain-specific indicators",
     ),
 ]
@@ -145,16 +167,25 @@ WORKFLOW_TEMPLATES: dict[str, dict] = {
         "keywords": ["dmp", "compliance", "policy", "funder", "mandate", "data management plan"],
         "steps": [
             {
-                "tool": "assess_dmp_compliance",
+                "tool": "fairsharing_assess_dmp_compliance",
                 "note": "Single-call comprehensive assessment (preferred)",
             },
-            {"tool": "get_policy_details", "note": "Or start here for detailed policy mandates"},
             {
-                "tool": "find_compliant_standards",
+                "tool": "fairsharing_get_policy_details",
+                "note": "Or start here for detailed policy mandates",
+            },
+            {
+                "tool": "fairsharing_find_compliant_standards",
                 "note": "Find standards satisfying multiple policies",
             },
-            {"tool": "check_policy_database_compliance", "note": "Check DB compliance per-policy"},
-            {"tool": "get_database_quality_profile", "note": "Assess FAIR quality of each DB"},
+            {
+                "tool": "fairsharing_check_policy_database_compliance",
+                "note": "Check DB compliance per-policy",
+            },
+            {
+                "tool": "fairsharing_get_database_quality_profile",
+                "note": "Assess FAIR quality of each DB",
+            },
         ],
     },
     "standard_ecosystem": {
@@ -162,11 +193,20 @@ WORKFLOW_TEMPLATES: dict[str, dict] = {
         "description": "Understand adoption and reach of a data standard",
         "keywords": ["standard", "adoption", "ecosystem", "implementation", "maturity"],
         "steps": [
-            {"tool": "search_records", "note": "Find the standard by name"},
-            {"tool": "get_record", "note": "Get full standard details"},
-            {"tool": "analyze_standard_adoption", "note": "See who implements and recommends it"},
-            {"tool": "find_databases_for_standard", "note": "List implementing databases"},
-            {"tool": "compute_maturity_index", "note": "Compare maturity across standards"},
+            {"tool": "fairsharing_search_records", "note": "Find the standard by name"},
+            {"tool": "fairsharing_get_record", "note": "Get full standard details"},
+            {
+                "tool": "fairsharing_analyze_standard_adoption",
+                "note": "See who implements and recommends it",
+            },
+            {
+                "tool": "fairsharing_find_databases_for_standard",
+                "note": "List implementing databases",
+            },
+            {
+                "tool": "fairsharing_compute_maturity_index",
+                "note": "Compare maturity across standards",
+            },
         ],
     },
     "database_selection": {
@@ -174,10 +214,22 @@ WORKFLOW_TEMPLATES: dict[str, dict] = {
         "description": "Find and compare the best databases for a subject area",
         "keywords": ["database", "quality", "fair", "compare", "rank", "best", "select"],
         "steps": [
-            {"tool": "rank_databases_by_quality", "note": "Rank databases by FAIR score"},
-            {"tool": "compare_databases_quality", "note": "Side-by-side FAIR indicator comparison"},
-            {"tool": "get_database_quality_profile", "note": "Deep-dive on the top candidate"},
-            {"tool": "find_standards_for_database", "note": "Check what standards it implements"},
+            {
+                "tool": "fairsharing_rank_databases_by_quality",
+                "note": "Rank databases by FAIR score",
+            },
+            {
+                "tool": "fairsharing_compare_databases_quality",
+                "note": "Side-by-side FAIR indicator comparison",
+            },
+            {
+                "tool": "fairsharing_get_database_quality_profile",
+                "note": "Deep-dive on the top candidate",
+            },
+            {
+                "tool": "fairsharing_find_standards_for_database",
+                "note": "Check what standards it implements",
+            },
         ],
     },
     "policy_landscape": {
@@ -185,17 +237,23 @@ WORKFLOW_TEMPLATES: dict[str, dict] = {
         "description": "Compare data policies across countries or institutions",
         "keywords": ["policy", "country", "landscape", "compare", "mandate", "funder", "journal"],
         "steps": [
-            {"tool": "search_records", "note": "Find policies by country/subject"},
-            {"tool": "compare_policies_by_country", "note": "Cross-country mandate comparison"},
+            {"tool": "fairsharing_search_records", "note": "Find policies by country/subject"},
             {
-                "tool": "detect_policy_conflicts",
+                "tool": "fairsharing_compare_policies_by_country",
+                "note": "Cross-country mandate comparison",
+            },
+            {
+                "tool": "fairsharing_detect_policy_conflicts",
                 "note": "Find conflicts between overlapping policies",
             },
             {
-                "tool": "trace_policy_impact",
+                "tool": "fairsharing_trace_policy_impact",
                 "note": "See downstream impact (standards -> databases)",
             },
-            {"tool": "find_policy_gaps", "note": "Identify uncovered standards/databases"},
+            {
+                "tool": "fairsharing_find_policy_gaps",
+                "note": "Identify uncovered standards/databases",
+            },
         ],
     },
     "deprecation_assessment": {
@@ -203,10 +261,16 @@ WORKFLOW_TEMPLATES: dict[str, dict] = {
         "description": "Assess the ripple effects of a deprecated resource",
         "keywords": ["deprecat", "impact", "retired", "obsolete", "replace", "transitive"],
         "steps": [
-            {"tool": "find_deprecated_resources", "note": "Find deprecated records in a subject"},
-            {"tool": "analyze_transitive_impact", "note": "Multi-hop impact analysis (preferred)"},
             {
-                "tool": "analyze_deprecation_impact",
+                "tool": "fairsharing_find_deprecated_resources",
+                "note": "Find deprecated records in a subject",
+            },
+            {
+                "tool": "fairsharing_analyze_transitive_impact",
+                "note": "Multi-hop impact analysis (preferred)",
+            },
+            {
+                "tool": "fairsharing_analyze_deprecation_impact",
                 "note": "Or single-hop analysis for quick check",
             },
         ],
@@ -217,15 +281,18 @@ WORKFLOW_TEMPLATES: dict[str, dict] = {
         "keywords": ["graph", "network", "path", "community", "pagerank", "centrality", "explore"],
         "steps": [
             {
-                "tool": "suggest_graph_starting_points",
+                "tool": "fairsharing_suggest_graph_starting_points",
                 "note": "Find records with the richest graphs",
             },
-            {"tool": "get_record_graph", "note": "Get graph structure overview"},
+            {"tool": "fairsharing_get_record_graph", "note": "Get graph structure overview"},
             {
-                "tool": "analyze_graph_comprehensive",
+                "tool": "fairsharing_analyze_graph_comprehensive",
                 "note": "Full analysis: PageRank + communities + centrality",
             },
-            {"tool": "find_semantic_path", "note": "Find weighted path between two nodes"},
+            {
+                "tool": "fairsharing_find_semantic_path",
+                "note": "Find weighted path between two nodes",
+            },
         ],
     },
     "cross_registry_quality": {
@@ -234,10 +301,13 @@ WORKFLOW_TEMPLATES: dict[str, dict] = {
         "keywords": ["unified", "cross", "quality", "compare", "mixed", "score"],
         "steps": [
             {
-                "tool": "compare_unified_quality",
+                "tool": "fairsharing_compare_unified_quality",
                 "note": "Compare any mix of records on 0-100 scale",
             },
-            {"tool": "get_unified_quality_score", "note": "Individual record normalized score"},
+            {
+                "tool": "fairsharing_get_unified_quality_score",
+                "note": "Individual record normalized score",
+            },
         ],
     },
 }
@@ -254,9 +324,27 @@ def _expand_synonyms(tokens: list[str]) -> set[str]:
     return expanded
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_recommend_tools",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
 async def recommend_tools(
-    query: str, max_suggestions: int = 10, output_format: str = "markdown"
+    query: Annotated[str, Field(min_length=1, max_length=500, description="Search query")],
+    max_suggestions: Annotated[
+        int, Field(default=10, ge=1, le=25, description="Maximum tool suggestions")
+    ] = 10,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Recommend MCP tools based on a natural-language or keyword query.
 
@@ -312,7 +400,7 @@ async def recommend_tools(
         return (
             f"No tools matched '{query}'. Try broader keywords: e.g. 'search', "
             "'policy', 'graph', 'compare', 'taxonomy', 'curator', 'FAIR'.\n\n"
-            "Or use `suggest_workflow(intent)` for step-by-step task guidance."
+            "Or use `fairsharing_suggest_workflow(intent)` for step-by-step task guidance."
         )
 
     scored.sort(key=lambda x: (-x[0], x[1]))
@@ -352,13 +440,32 @@ async def recommend_tools(
         lines.append("")
         lines.append("## Related Workflows")
         for wf_key, wf_title in matching_workflows[:3]:
-            lines.append(f"- **{wf_title}** — use `suggest_workflow('{wf_key}')`")
+            lines.append(f"- **{wf_title}** — use `fairsharing_suggest_workflow('{wf_key}')`")
 
     return "\n".join(lines)
 
 
-@app.mcp.tool()
-async def suggest_workflow(intent: str, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_suggest_workflow",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+async def suggest_workflow(
+    intent: Annotated[
+        str, Field(min_length=1, max_length=200, description="Workflow intent description")
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get a recommended multi-tool workflow for a specific task.
 
     Returns a step-by-step tool sequence for common analytical tasks like
@@ -460,16 +567,42 @@ def _format_workflow(wf: dict) -> str:
     return "\n".join(lines)
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_orphan_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_orphan_records(
-    registry: str,
-    orphan_type: str,
-    subjects: list[str] | None = None,
-    countries: list[str] | None = None,
-    min_year: int | None = None,
-    max_year: int | None = None,
-    max_results: int = 25,
-    output_format: str = "markdown",
+    registry: Annotated[
+        str, Field(min_length=1, description="Registry name (Standard, Database, or Policy)")
+    ],
+    orphan_type: Annotated[str, Field(description="Type of orphan records to find")],
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    countries: Annotated[
+        list[str] | None, Field(default=None, description="Country filter")
+    ] = None,
+    min_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Minimum creation year (inclusive)"),
+    ] = None,
+    max_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Maximum creation year (inclusive)"),
+    ] = None,
+    max_results: Annotated[
+        int, Field(default=25, ge=1, le=100, description="Maximum results to return")
+    ] = 25,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find records that LACK a specific type of connection (inverse queries).
 
@@ -671,8 +804,25 @@ async def find_orphan_records(
         return f"Error finding orphan records: {e}"
 
 
-@app.mcp.tool()
-async def search_publications(query: str, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_search_publications",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def search_publications(
+    query: Annotated[str, Field(min_length=1, max_length=500, description="Search query")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Search publications referenced by FAIRsharing records.
 
     Args:
@@ -731,8 +881,24 @@ async def search_publications(query: str, output_format: str = "markdown") -> st
         return f"Error searching publications: {e}"
 
 
-@app.mcp.tool()
-async def get_registries(output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_registries",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_registries(
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get available registry types in FAIRsharing.
 
     Returns the different types of registries: Database, Standard, Policy, Collection.
@@ -777,12 +943,30 @@ async def get_registries(output_format: str = "markdown") -> str:
         return f"Error fetching registries: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_aggregate_by_field",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def aggregate_by_field(
-    field: str = "registry",
-    status: list[str] | None = None,
-    max_values: int = 30,
-    output_format: str = "markdown",
+    field: Annotated[
+        str, Field(default="registry", description="Field to aggregate by")
+    ] = "registry",
+    status: Annotated[list[str] | None, Field(default=None, description="Status filter")] = None,
+    max_values: Annotated[
+        int, Field(default=30, ge=1, le=100, description="Maximum values to return")
+    ] = 30,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Aggregate record counts by a dimension (registry, subject, domain, or country).
 
@@ -898,8 +1082,26 @@ async def aggregate_by_field(
         return f"Error aggregating by {field}: {e}"
 
 
-@app.mcp.tool()
-async def list_licences(page: int = 1, per_page: int = 50, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_list_licences",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def list_licences(
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=50, ge=1, le=50, description="Results per page")] = 50,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """List all licences used in FAIRsharing.
 
     Args:
@@ -953,8 +1155,28 @@ async def list_licences(page: int = 1, per_page: int = 50, output_format: str = 
         return f"Error listing licences: {e}"
 
 
-@app.mcp.tool()
-async def get_statistics(detailed: bool = False, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_statistics",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_statistics(
+    detailed: Annotated[
+        bool,
+        Field(default=False, description="Include rich aggregations"),
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get platform-wide statistics for FAIRsharing.
 
     Args:
@@ -1089,8 +1311,25 @@ async def get_statistics(detailed: bool = False, output_format: str = "markdown"
         return f"Error fetching statistics: {e}"
 
 
-@app.mcp.tool()
-async def suggest_related_resources(record_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_suggest_related_resources",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def suggest_related_resources(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Suggest related Standards or Databases based on community usage.
 
     Uses a collaborative filtering approach:
@@ -1244,12 +1483,33 @@ async def suggest_related_resources(record_id: int, output_format: str = "markdo
         return f"Error generating suggestions: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_databases_by_standard",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_databases_by_standard(
-    standard_id: int | None = None,
-    standard_name: str | None = None,
-    max_results: int = 50,
-    output_format: str = "markdown",
+    standard_id: Annotated[
+        int | None, Field(default=None, ge=1, description="FAIRsharing record ID of the standard")
+    ] = None,
+    standard_name: Annotated[
+        str | None,
+        Field(default=None, max_length=500, description="Name or partial name of the standard"),
+    ] = None,
+    max_results: Annotated[
+        int, Field(default=50, ge=1, le=100, description="Maximum results to return")
+    ] = 50,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find databases that implement or are linked to a given standard (reverse lookup).
 
@@ -1364,13 +1624,32 @@ async def find_databases_by_standard(
         return f"Error finding databases by standard: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_suggest_graph_starting_points",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def suggest_graph_starting_points(
-    query: str,
-    registry: list[str] | None = None,
-    subjects: list[str] | None = None,
-    max_candidates: int = 5,
-    output_format: str = "markdown",
+    query: Annotated[str, Field(min_length=1, max_length=500, description="Search query")],
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    max_candidates: Annotated[
+        int, Field(default=5, ge=1, le=100, description="Number of top results")
+    ] = 5,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find records with the largest, richest knowledge graphs for a search topic.
 
@@ -1509,13 +1788,35 @@ async def suggest_graph_starting_points(
         return f"Error suggesting starting points: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_deprecated_resources",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_deprecated_resources(
-    subjects: list[str] | None = None,
-    query: str | None = None,
-    registry: list[str] | None = None,
-    max_results: int = 20,
-    output_format: str = "markdown",
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    query: Annotated[
+        str | None,
+        Field(default=None, max_length=500, description="Search query"),
+    ] = None,
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    max_results: Annotated[
+        int, Field(default=20, ge=1, le=100, description="Maximum results to return")
+    ] = 20,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find deprecated records with progressive fallback for records that lost tags.
 
@@ -1694,8 +1995,24 @@ async def find_deprecated_resources(
         return f"Error finding deprecated resources: {e}"
 
 
-@app.mcp.tool()
-async def check_api_health(output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_check_api_health",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def check_api_health(
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Check FAIRsharing API connectivity, authentication, and response time.
 
     Makes a lightweight query (fetch registries) to verify that:
@@ -1805,8 +2122,27 @@ async def check_api_health(output_format: str = "markdown") -> str:
     return "\n".join(lines)
 
 
-@app.mcp.tool()
-async def explain_fairsharing(topic: str = "overview", output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_explain_fairsharing",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=False,
+    ),
+)
+async def explain_fairsharing(
+    topic: Annotated[
+        str, Field(default="overview", min_length=1, description="Topic to explain")
+    ] = "overview",
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get reference documentation about FAIRsharing concepts, registries, and this tool suite.
 
     No API call is made. Returns static reference material to help understand
@@ -1842,12 +2178,12 @@ async def explain_fairsharing(topic: str = "overview", output_format: str = "mar
             "countries, organisations, publications, and (for databases) 9 FAIR quality indicators.\n\n"
             "## Key IDs\n"
             "- Each record has a numeric ID (e.g., 25) and optionally a DOI (e.g., 10.25504/FAIRsharing.2abjs5)\n"
-            "- Use `search_records` to find records by text/filters, `get_record` by ID, `search_by_doi` by DOI\n\n"
+            "- Use `fairsharing_search_records` to find records by text/filters, `fairsharing_get_record` by ID, `fairsharing_search_by_doi` by DOI\n\n"
             "## Getting Started\n"
-            "1. `check_api_health()` — verify your API key works\n"
-            "2. `get_statistics()` — see platform-wide counts\n"
-            "3. `search_records(query='...', registry=['Database'])` — find specific records\n"
-            "4. `get_record(record_id=25)` — get full details for a record\n"
+            "1. `fairsharing_check_api_health()` — verify your API key works\n"
+            "2. `fairsharing_get_statistics()` — see platform-wide counts\n"
+            "3. `fairsharing_search_records(query='...', registry=['Database'])` — find specific records\n"
+            "4. `fairsharing_get_record(record_id=25)` — get full details for a record\n"
         ),
         "fair_indicators": (
             "# FAIR Quality Indicators (Database Records Only)\n\n"
@@ -1872,10 +2208,10 @@ async def explain_fairsharing(topic: str = "overview", output_format: str = "mar
             "Score range: 0-9. Grade: Excellent (>=80%), Good (>=60%), Fair (>=40%), Needs Improvement (<40%).\n"
             "Confidence: high (all 9 present, none imputed), medium (<=2 missing), low (>2 missing).\n\n"
             "## Tools\n"
-            "- `get_database_quality_profile(record_id)` — single DB profile\n"
-            "- `rank_databases_by_quality(subjects=[...])` — ranked list\n"
-            "- `assess_database_indicators(data_access='open')` — filter by indicators\n"
-            "- `compare_databases_quality(record_ids=[...])` — side-by-side comparison\n"
+            "- `fairsharing_get_database_quality_profile(record_id)` — single DB profile\n"
+            "- `fairsharing_rank_databases_by_quality(subjects=[...])` — ranked list\n"
+            "- `fairsharing_assess_database_indicators(data_access='open')` — filter by indicators\n"
+            "- `fairsharing_compare_databases_quality(record_ids=[...])` — side-by-side comparison\n"
         ),
         "relationships": (
             "# Relationship Types in FAIRsharing\n\n"
@@ -1891,13 +2227,13 @@ async def explain_fairsharing(topic: str = "overview", output_format: str = "mar
             "| profiles | Standard profiles another standard | Standard -> Standard |\n"
             "| outputs | Record produces output used by another | any -> any |\n\n"
             "## Graph Tools\n"
-            "- `get_record_graph(record_id)` — structural overview of the local graph\n"
-            "- `find_semantic_path(record_id, target_id)` — shortest weighted path\n"
-            "- `compute_pagerank(record_id)` — influence ranking in the local graph\n"
-            "- `detect_communities(record_id)` — cluster detection\n"
-            "- `analyze_graph_comprehensive(record_id)` — combined analysis\n\n"
+            "- `fairsharing_get_record_graph(record_id)` — structural overview of the local graph\n"
+            "- `fairsharing_find_semantic_path(record_id, target_id)` — shortest weighted path\n"
+            "- `fairsharing_compute_pagerank(record_id)` — influence ranking in the local graph\n"
+            "- `fairsharing_detect_communities(record_id)` — cluster detection\n"
+            "- `fairsharing_analyze_graph_comprehensive(record_id)` — combined analysis\n\n"
             "NOTE: All graph tools operate on a single record's local neighborhood.\n"
-            "Use `suggest_graph_starting_points` to find records with the largest graphs.\n"
+            "Use `fairsharing_suggest_graph_starting_points` to find records with the largest graphs.\n"
         ),
         "registries": (
             "# FAIRsharing Registries\n\n"
@@ -1918,85 +2254,85 @@ async def explain_fairsharing(topic: str = "overview", output_format: str = "mar
         ),
         "workflows": (
             "# Common Multi-Tool Workflows\n\n"
-            "Use `suggest_workflow(intent)` for interactive workflow guidance.\n\n"
+            "Use `fairsharing_suggest_workflow(intent)` for interactive workflow guidance.\n\n"
             "## 1. DMP Compliance Assessment\n"
-            "**Preferred:** `assess_dmp_compliance(policy_id, database_ids)` — single call\n"
+            "**Preferred:** `fairsharing_assess_dmp_compliance(policy_id, database_ids)` — single call\n"
             "**Manual alternative:**\n"
             "```\n"
-            "get_policy_details(record_id=POLICY_ID)\n"
-            "  -> find_compliant_standards(policy_ids=[POLICY_ID], database_ids=[DB_IDS])\n"
-            "  -> get_database_quality_profile(record_id=DB_ID)\n"
-            "  -> check_policy_database_compliance(policy_id=POLICY_ID, database_id=DB_ID)\n"
+            "fairsharing_get_policy_details(record_id=POLICY_ID)\n"
+            "  -> fairsharing_find_compliant_standards(policy_ids=[POLICY_ID], database_ids=[DB_IDS])\n"
+            "  -> fairsharing_get_database_quality_profile(record_id=DB_ID)\n"
+            "  -> fairsharing_check_policy_database_compliance(policy_id=POLICY_ID, database_id=DB_ID)\n"
             "```\n\n"
             "## 2. Standard Ecosystem Analysis\n"
             "```\n"
-            "search_records(query='STANDARD_NAME', registry=['Standard'])\n"
-            "  -> get_record(record_id=STD_ID)\n"
-            "  -> find_databases_for_standard(record_id=STD_ID)\n"
-            "  -> analyze_standard_adoption(record_id=STD_ID)\n"
-            "  -> compute_maturity_index(subjects=['SUBJECT'])\n"
+            "fairsharing_search_records(query='STANDARD_NAME', registry=['Standard'])\n"
+            "  -> fairsharing_get_record(record_id=STD_ID)\n"
+            "  -> fairsharing_find_databases_for_standard(record_id=STD_ID)\n"
+            "  -> fairsharing_analyze_standard_adoption(record_id=STD_ID)\n"
+            "  -> fairsharing_compute_maturity_index(subjects=['SUBJECT'])\n"
             "```\n\n"
             "## 3. Database Quality Comparison\n"
             "```\n"
-            "rank_databases_by_quality(subjects=['Genomics'])\n"
-            "  -> compare_databases_quality(record_ids=[ID1, ID2, ID3])\n"
-            "  -> get_database_quality_profile(record_id=BEST_ID)\n"
+            "fairsharing_rank_databases_by_quality(subjects=['Genomics'])\n"
+            "  -> fairsharing_compare_databases_quality(record_ids=[ID1, ID2, ID3])\n"
+            "  -> fairsharing_get_database_quality_profile(record_id=BEST_ID)\n"
             "```\n\n"
             "## 4. Policy Landscape Analysis\n"
             "```\n"
-            "search_records(registry=['Policy'], countries=['United Kingdom'])\n"
-            "  -> compare_policies_by_country(country_a='United Kingdom', country_b='Germany')\n"
-            "  -> detect_policy_conflicts(policy_ids=[P1, P2])\n"
-            "  -> trace_policy_impact(record_id=P1)\n"
+            "fairsharing_search_records(registry=['Policy'], countries=['United Kingdom'])\n"
+            "  -> fairsharing_compare_policies_by_country(country_a='United Kingdom', country_b='Germany')\n"
+            "  -> fairsharing_detect_policy_conflicts(policy_ids=[P1, P2])\n"
+            "  -> fairsharing_trace_policy_impact(record_id=P1)\n"
             "```\n\n"
             "## 5. Deprecation Impact\n"
-            "**Preferred:** `analyze_transitive_impact(record_id, max_depth=3)` — multi-hop\n"
-            "**Quick check:** `analyze_deprecation_impact(record_id)` — single-hop only\n"
+            "**Preferred:** `fairsharing_analyze_transitive_impact(record_id, max_depth=3)` — multi-hop\n"
+            "**Quick check:** `fairsharing_analyze_deprecation_impact(record_id)` — single-hop only\n"
             "```\n"
-            "find_deprecated_resources(subjects=['Genomics'])\n"
-            "  -> analyze_transitive_impact(record_id=DEPRECATED_ID, max_depth=3)\n"
+            "fairsharing_find_deprecated_resources(subjects=['Genomics'])\n"
+            "  -> fairsharing_analyze_transitive_impact(record_id=DEPRECATED_ID, max_depth=3)\n"
             "```\n\n"
             "## 6. Cross-Registry Quality\n"
             "```\n"
-            "compare_unified_quality(record_ids=[DB_ID, STD_ID, POL_ID])\n"
-            "  -> get_unified_quality_score(record_id=SPECIFIC_ID)\n"
+            "fairsharing_compare_unified_quality(record_ids=[DB_ID, STD_ID, POL_ID])\n"
+            "  -> fairsharing_get_unified_quality_score(record_id=SPECIFIC_ID)\n"
             "```\n\n"
             "## Tips\n"
-            "- Use `output_format='json'` on search_records, get_record, count_records,\n"
-            "  get_database_quality_profile, get_statistics, get_unified_quality_score,\n"
-            "  assess_dmp_compliance, and analyze_transitive_impact for machine-readable output.\n"
-            "- Use `check_api_health()` before batch operations.\n"
-            "- Use `suggest_graph_starting_points(query)` before graph analysis.\n"
-            "- Use `recommend_tools(query)` to discover tools by keyword.\n"
+            "- Use `output_format='json'` on fairsharing_search_records, fairsharing_get_record, fairsharing_count_records,\n"
+            "  fairsharing_get_database_quality_profile, fairsharing_get_statistics, fairsharing_get_unified_quality_score,\n"
+            "  fairsharing_assess_dmp_compliance, and fairsharing_analyze_transitive_impact for machine-readable output.\n"
+            "- Use `fairsharing_check_api_health()` before batch operations.\n"
+            "- Use `fairsharing_suggest_graph_starting_points(query)` before graph analysis.\n"
+            "- Use `fairsharing_recommend_tools(query)` to discover tools by keyword.\n"
         ),
         "scoring": (
             "# Quality Scoring Systems\n\n"
             "This server has three independent quality scoring systems:\n\n"
             "## Database FAIR Score (0-9 scale)\n"
-            "Based on 9 FAIR indicator fields. See `explain_fairsharing('fair_indicators')` for details.\n"
-            "Tool: `get_database_quality_profile`, `rank_databases_by_quality`\n\n"
+            "Based on 9 FAIR indicator fields. See `fairsharing_explain_fairsharing('fair_indicators')` for details.\n"
+            "Tool: `fairsharing_get_database_quality_profile`, `fairsharing_rank_databases_by_quality`\n\n"
             "## Standard Quality Profile (0-10 scale)\n"
             "Scores standards on:\n"
             "- Identity (3 pts): homepage, DOI, description presence\n"
             "- Maintenance (2 pts): isMaintained status, not deprecated\n"
             "- Adoption (3 pts): count of implementing databases (normalized)\n"
             "- Policy endorsement (2 pts): count of recommending policies (normalized)\n"
-            "Tool: `get_standard_quality_profile`\n\n"
+            "Tool: `fairsharing_get_standard_quality_profile`\n\n"
             "## Policy Quality Profile (0-10 scale)\n"
             "Scores policies on:\n"
             "- Mandate coverage (4 pts): data sharing, DMP creation, software sharing, preservation\n"
             "- Coverage breadth (4 pts): data protection, availability statement, licences, citation\n"
             "- Recommendations (2 pts): links to standards and databases\n"
-            "Tool: `get_policy_quality_profile`\n\n"
+            "Tool: `fairsharing_get_policy_quality_profile`\n\n"
             "## Standards Maturity Index (SMI, 0-100)\n"
             "Composite index combining: adoption (DB count), policy endorsement, stability.\n"
             "Normalized against the sample (not the full registry). Configurable weights.\n"
-            "Tool: `compute_maturity_index`\n\n"
+            "Tool: `fairsharing_compute_maturity_index`\n\n"
             "## Unified Quality Score (0-100 scale)\n"
             "Normalizes any registry's score to a common 0-100 scale for cross-registry comparison.\n"
             "Database: raw/9 * 100, Standard: raw/10 * 100, Policy: raw/10 * 100.\n"
             "Unified grades: A+ (>=90), A (>=80), B (>=65), C (>=50), D (>=35), F (<35).\n"
-            "Tools: `get_unified_quality_score`, `compare_unified_quality`\n\n"
+            "Tools: `fairsharing_get_unified_quality_score`, `fairsharing_compare_unified_quality`\n\n"
             "## Important: Cross-Registry Comparison\n"
             "Database, Standard, and Policy scores measure different aspects of quality.\n"
             "Cross-registry comparisons via unified scoring are approximate — a DB score of\n"
@@ -2008,7 +2344,7 @@ async def explain_fairsharing(topic: str = "overview", output_format: str = "mar
         available = ", ".join(sorted(docs.keys()))
         return (
             f"Unknown topic '{topic}'. Available topics: {available}\n\n"
-            "Example: `explain_fairsharing('workflows')` or `explain_fairsharing('fair_indicators')`"
+            "Example: `fairsharing_explain_fairsharing('workflows')` or `fairsharing_explain_fairsharing('fair_indicators')`"
         )
 
     if output_format == "json":

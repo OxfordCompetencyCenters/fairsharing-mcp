@@ -3,6 +3,10 @@
 import asyncio
 import json
 import logging
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
@@ -82,8 +86,25 @@ def _audit_record_completeness(record: dict) -> dict:
     }
 
 
-@app.mcp.tool()
-async def audit_metadata_completeness(record_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_audit_metadata_completeness",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def audit_metadata_completeness(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Audit a record for missing critical and recommended metadata.
 
     Generates a scorecard checking for fields required or recommended
@@ -155,14 +176,39 @@ async def audit_metadata_completeness(record_id: int, output_format: str = "mark
         return f"Error auditing metadata: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_batch_audit_metadata",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def batch_audit_metadata(
-    query: str = "*",
-    registry: list[str] | None = None,
-    limit: int = 10,
-    min_year: int | None = None,
-    max_year: int | None = None,
-    output_format: str = "markdown",
+    query: Annotated[str, Field(default="*", max_length=500, description="Search query")] = "*",
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    limit: Annotated[
+        int, Field(default=10, ge=1, le=25, description="Maximum records to return")
+    ] = 10,
+    min_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Minimum creation year (inclusive)"),
+    ] = None,
+    max_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Maximum creation year (inclusive)"),
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Audit metadata completeness for multiple records.
 

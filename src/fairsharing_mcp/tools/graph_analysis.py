@@ -10,6 +10,10 @@ import json
 import logging
 import random
 from collections import Counter, deque
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
@@ -133,12 +137,33 @@ def _reconstruct_path(
 # ── Tool 1: Weighted Semantic Path Finding ───────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_semantic_path",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_semantic_path(
-    record_id_1: int,
-    record_id_2: int,
-    prefer: str = "strongest",
-    output_format: str = "markdown",
+    record_id_1: Annotated[int, Field(ge=1, description="First FAIRsharing record ID")],
+    record_id_2: Annotated[int, Field(ge=1, description="Second FAIRsharing record ID")],
+    prefer: Annotated[
+        str,
+        Field(
+            default="strongest",
+            pattern="^(strongest|shortest)$",
+            description="Path preference",
+        ),
+    ] = "strongest",
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find the most semantically meaningful path between two records.
 
@@ -352,13 +377,33 @@ def _compute_pagerank_scores(
 # ── Tool 2: Weighted PageRank ────────────────────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compute_pagerank",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compute_pagerank(
-    record_id: int,
-    top_n: int = 25,
-    damping: float = 0.85,
-    iterations: int = 20,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    top_n: Annotated[
+        int, Field(default=25, ge=1, le=100, description="Number of top results")
+    ] = 25,
+    damping: Annotated[
+        float, Field(default=0.85, gt=0, lt=1, description="PageRank damping factor")
+    ] = 0.85,
+    iterations: Annotated[
+        int, Field(default=20, ge=1, le=100, description="Number of iterations")
+    ] = 20,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compute weighted PageRank to identify truly influential nodes in the graph.
 
@@ -527,13 +572,33 @@ async def compute_pagerank(
 # ── Tool 3: Community Detection ──────────────────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_detect_communities",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def detect_communities(
-    record_id: int,
-    max_iterations: int = 20,
-    min_community_size: int = 3,
-    seed: int | None = 42,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    max_iterations: Annotated[
+        int, Field(default=20, ge=1, le=100, description="Maximum iterations")
+    ] = 20,
+    min_community_size: Annotated[
+        int, Field(default=3, ge=1, le=50, description="Minimum community size")
+    ] = 3,
+    seed: Annotated[
+        int | None, Field(default=42, description="Random seed for reproducibility")
+    ] = 42,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Detect natural communities/clusters in the knowledge graph using label propagation.
 
@@ -704,12 +769,35 @@ async def detect_communities(
 # ── Tool 4: Bipartite Projection for Similarity ─────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_similar_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_similar_records(
-    record_id: int,
-    projection_side: str = "auto",
-    top_n: int = 15,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    projection_side: Annotated[
+        str,
+        Field(
+            default="auto",
+            pattern="^(auto|databases|standards|policies)$",
+            description="Projection side for bipartite analysis",
+        ),
+    ] = "auto",
+    top_n: Annotated[
+        int, Field(default=15, ge=1, le=100, description="Number of top results")
+    ] = 15,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find similar records using bipartite projection of the standard-database network.
 
@@ -873,13 +961,29 @@ async def find_similar_records(
 # ── Tool 5: Multi-Path Analysis (Yen's K-Shortest) ──────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_multiple_paths",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_multiple_paths(
-    record_id_1: int,
-    record_id_2: int,
-    k: int = 3,
-    max_path_length: int = 8,
-    output_format: str = "markdown",
+    record_id_1: Annotated[int, Field(ge=1, description="First FAIRsharing record ID")],
+    record_id_2: Annotated[int, Field(ge=1, description="Second FAIRsharing record ID")],
+    k: Annotated[int, Field(default=3, ge=1, le=10, description="Number of shortest paths")] = 3,
+    max_path_length: Annotated[
+        int, Field(default=8, ge=2, le=20, description="Maximum path length")
+    ] = 8,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find K diverse paths between two records, each telling a different story.
 
@@ -1081,12 +1185,33 @@ async def find_multiple_paths(
 # ── Tool 6: Cross-Graph Path Finding ──────────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_cross_graph_path",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_cross_graph_path(
-    record_id_1: int,
-    record_id_2: int,
-    prefer: str = "strongest",
-    output_format: str = "markdown",
+    record_id_1: Annotated[int, Field(ge=1, description="First FAIRsharing record ID")],
+    record_id_2: Annotated[int, Field(ge=1, description="Second FAIRsharing record ID")],
+    prefer: Annotated[
+        str,
+        Field(
+            default="strongest",
+            pattern="^(strongest|shortest)$",
+            description="Path preference",
+        ),
+    ] = "strongest",
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find a path between two records by merging their local knowledge graphs.
 
@@ -1226,13 +1351,36 @@ async def find_cross_graph_path(
         return f"Error finding cross-graph path: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_path_across_graphs",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_path_across_graphs(
-    record_ids: list[int],
-    source_id: int,
-    target_id: int,
-    prefer: str = "strongest",
-    output_format: str = "markdown",
+    record_ids: Annotated[
+        list[int], Field(min_length=2, description="Record IDs whose graphs to merge")
+    ],
+    source_id: Annotated[int, Field(ge=1, description="First FAIRsharing record ID")],
+    target_id: Annotated[int, Field(ge=1, description="Second FAIRsharing record ID")],
+    prefer: Annotated[
+        str,
+        Field(
+            default="strongest",
+            pattern="^(strongest|shortest)$",
+            description="Path preference",
+        ),
+    ] = "strongest",
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find a path between two records by merging multiple neighborhood graphs.
 
@@ -1515,12 +1663,30 @@ def _compute_betweenness(graph: ParsedGraph, sample_size: int = 100) -> dict[str
 # ── Tool 6: Betweenness Centrality ──────────────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compute_betweenness_centrality",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compute_betweenness_centrality(
-    record_id: int,
-    top_n: int = 25,
-    sample_size: int = 100,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    top_n: Annotated[
+        int, Field(default=25, ge=1, le=100, description="Number of top results")
+    ] = 25,
+    sample_size: Annotated[
+        int, Field(default=100, ge=1, le=200, description="Number of source nodes to sample")
+    ] = 100,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compute betweenness centrality to identify critical bridge nodes.
 
@@ -1669,13 +1835,36 @@ async def compute_betweenness_centrality(
 # ── Tool 7: Path Criticality (Combined Path + BC) ─────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_path_criticality",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_path_criticality(
-    record_id_1: int,
-    record_id_2: int,
-    prefer: str = "strongest",
-    sample_size: int = 100,
-    output_format: str = "markdown",
+    record_id_1: Annotated[int, Field(ge=1, description="First FAIRsharing record ID")],
+    record_id_2: Annotated[int, Field(ge=1, description="Second FAIRsharing record ID")],
+    prefer: Annotated[
+        str,
+        Field(
+            default="strongest",
+            pattern="^(strongest|shortest)$",
+            description="Path preference",
+        ),
+    ] = "strongest",
+    sample_size: Annotated[
+        int, Field(default=100, ge=1, le=200, description="Number of source nodes to sample")
+    ] = 100,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find the path between two records AND annotate each node with its
     betweenness centrality score (bridge importance).
@@ -1844,11 +2033,27 @@ async def analyze_path_criticality(
 # ── Tool 8: Strongly Connected Components (Tarjan's) ────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_dependency_clusters",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_dependency_clusters(
-    record_id: int,
-    min_component_size: int = 2,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    min_component_size: Annotated[
+        int, Field(default=2, ge=1, le=50, description="Minimum community size")
+    ] = 2,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find strongly connected components (mutual dependency clusters) in the graph.
 
@@ -2056,16 +2261,43 @@ def _tarjan_iterative(
 # ── Tool 10: Comprehensive Graph Analysis ─────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_graph_comprehensive",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_graph_comprehensive(
-    record_id: int,
-    top_n: int = 15,
-    damping: float = 0.85,
-    min_community_size: int = 3,
-    seed: int | None = 42,
-    summary_mode: bool = False,
-    additional_seed_ids: list[int] | None = None,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    top_n: Annotated[
+        int, Field(default=15, ge=1, le=100, description="Number of top results")
+    ] = 15,
+    damping: Annotated[
+        float, Field(default=0.85, gt=0, lt=1, description="PageRank damping factor")
+    ] = 0.85,
+    min_community_size: Annotated[
+        int, Field(default=3, ge=1, le=50, description="Minimum community size")
+    ] = 3,
+    seed: Annotated[
+        int | None, Field(default=42, description="Random seed for reproducibility")
+    ] = 42,
+    summary_mode: Annotated[
+        bool, Field(default=False, description="If True, output is condensed for large graphs")
+    ] = False,
+    additional_seed_ids: Annotated[
+        list[int] | None,
+        Field(default=None, max_length=20, description="Additional seed record IDs"),
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Run PageRank, community detection, and betweenness centrality in one call.
 
@@ -2363,15 +2595,37 @@ async def analyze_graph_comprehensive(
 # ── Tool 11: Expanded Graph Exploration ─────────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_explore_expanded_graph",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def explore_expanded_graph(
-    record_id: int,
-    depth: int = 2,
-    max_seeds: int = 10,
-    top_n: int = 15,
-    damping: float = 0.85,
-    seed: int | None = 42,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    depth: Annotated[int, Field(default=2, ge=1, le=3, description="Expansion depth")] = 2,
+    max_seeds: Annotated[
+        int, Field(default=10, ge=1, le=20, description="Maximum seed records")
+    ] = 10,
+    top_n: Annotated[
+        int, Field(default=15, ge=1, le=100, description="Number of top results")
+    ] = 15,
+    damping: Annotated[
+        float, Field(default=0.85, gt=0, lt=1, description="PageRank damping factor")
+    ] = 0.85,
+    seed: Annotated[
+        int | None, Field(default=42, description="Random seed for reproducibility")
+    ] = 42,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Iteratively expand a record's neighborhood graph for broader analysis.
 
@@ -2577,14 +2831,37 @@ async def explore_expanded_graph(
 # ── Tool 12: Topic Graph ────────────────────────────────────────────────
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_build_topic_graph",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def build_topic_graph(
-    subject: str,
-    registry: str | None = None,
-    max_seeds: int = 5,
-    top_n: int = 15,
-    seed: int | None = 42,
-    output_format: str = "markdown",
+    subject: Annotated[str, Field(min_length=1, description="Subject to build topic graph for")],
+    registry: Annotated[
+        str | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    max_seeds: Annotated[
+        int, Field(default=5, ge=1, le=20, description="Maximum seed records")
+    ] = 5,
+    top_n: Annotated[
+        int, Field(default=15, ge=1, le=100, description="Number of top results")
+    ] = 15,
+    seed: Annotated[
+        int | None, Field(default=42, description="Random seed for reproducibility")
+    ] = 42,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Build a topic-level graph by searching for records and merging their neighborhoods.
 

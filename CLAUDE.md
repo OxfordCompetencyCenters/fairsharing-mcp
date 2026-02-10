@@ -62,12 +62,12 @@ server.py → tools/__init__.py → tools/*.py → app.py → client.py → http
 | `records.py` | 6 | Record detail, date filtering, batch fetch, reverse lookup |
 | `taxonomy.py` | 11 | Subjects, domains, taxonomies |
 | `organisations.py` | 6 | Organisations, countries, regions |
-| `standards.py` | 10 | Maturity index, adoption, emerging/endorsed standards |
-| `quality.py` | 8 | FAIR indicators, unified/comprehensive quality scoring |
-| `policies.py` | 8 | Policy mandates, compliance, conflict detection |
+| `standards.py` | 7 | Maturity index, adoption, emerging/endorsed standards |
+| `quality.py` | 7 | FAIR indicators, unified/comprehensive quality scoring |
+| `policies.py` | 7 | Policy mandates, compliance, conflict detection |
 | `graph.py` | 7 | Record graph/connections |
 | `graph_analysis.py` | 13 | PageRank, communities, paths, centrality, expanded/topic graphs (pure Python, no networkx) |
-| `comparison.py` | 12 | DMP compliance, transitive impact, cross-record comparison |
+| `comparison.py` | 9 | DMP compliance, transitive impact, cross-record comparison |
 | `discovery.py` | 14 | Workflows, tool recommendations, orphan/deprecated record finding |
 | `curator.py` | 2 | Batch metadata auditing |
 

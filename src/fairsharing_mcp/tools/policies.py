@@ -2,6 +2,10 @@
 
 import json
 from collections import Counter
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app, config, helpers
 from fairsharing_mcp.client import FAIRsharingError
@@ -290,10 +294,24 @@ def _score_policy_comprehensive(record: dict) -> dict:
     }
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_policy_details",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_policy_details(
-    record_id: int,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Get detailed policy information including all mandate attributes.
 
@@ -332,13 +350,33 @@ async def get_policy_details(
         return f"Error fetching policy details: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compare_policies_by_country",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compare_policies_by_country(
-    countries: list[str],
-    policy_type: str | None = None,
-    subject: str | None = None,
-    max_per_country: int = 10,
-    output_format: str = "markdown",
+    countries: Annotated[
+        list[str], Field(min_length=2, description="List of country names to compare")
+    ],
+    policy_type: Annotated[
+        str | None, Field(default=None, description="Policy type filter")
+    ] = None,
+    subject: Annotated[str | None, Field(default=None, description="Subject filter")] = None,
+    max_per_country: Annotated[
+        int, Field(default=10, ge=1, le=50, description="Maximum results per country")
+    ] = 10,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare policies across countries with mandate-level aggregation.
 
@@ -576,13 +614,33 @@ async def compare_policies_by_country(
         return f"Error comparing policies: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_policy_mandates",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_policy_mandates(
-    countries: list[str] | None = None,
-    subject: str | None = None,
-    policy_type: str | None = None,
-    max_policies: int = 25,
-    output_format: str = "markdown",
+    countries: Annotated[
+        list[str] | None, Field(default=None, description="Country filter")
+    ] = None,
+    subject: Annotated[str | None, Field(default=None, description="Subject filter")] = None,
+    policy_type: Annotated[
+        str | None, Field(default=None, description="Policy type filter")
+    ] = None,
+    max_policies: Annotated[
+        int, Field(default=25, ge=1, le=100, description="Maximum policies to analyze")
+    ] = 25,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Aggregate distribution of mandate levels across a filtered policy set.
 
@@ -815,11 +873,25 @@ async def analyze_policy_mandates(
         return f"Error analyzing policy mandates: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_trace_policy_impact",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def trace_policy_impact(
-    record_id: int,
-    subject: str | None = None,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    subject: Annotated[str | None, Field(default=None, description="Subject filter")] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Trace a policy's impact: Policy -> recommended Standards -> implementing Databases.
 
@@ -1103,11 +1175,27 @@ async def trace_policy_impact(
         return f"Error tracing policy impact: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_policy_gaps",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_policy_gaps(
-    subject: str,
-    country: str | None = None,
-    output_format: str = "markdown",
+    subject: Annotated[str, Field(description="Scientific subject to analyze")],
+    country: Annotated[
+        str | None, Field(default=None, description="Country filter for policies")
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find standards/databases in a subject NOT covered by any policy.
 
@@ -1330,10 +1418,24 @@ async def find_policy_gaps(
         return f"Error analyzing policy gaps: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_policy_quality_profile",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_policy_quality_profile(
-    record_id: int,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Generate a quality profile and score for a Policy.
 
@@ -1411,10 +1513,26 @@ async def get_policy_quality_profile(
         return f"Error scoring policy: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_detect_policy_conflicts",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def detect_policy_conflicts(
-    policy_ids: list[int],
-    output_format: str = "markdown",
+    policy_ids: Annotated[
+        list[int], Field(min_length=2, max_length=5, description="List of policy record IDs")
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Detect conflicts and friction between 2-5 specific policies.
 

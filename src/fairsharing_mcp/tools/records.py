@@ -4,6 +4,10 @@ import asyncio
 import json
 import logging
 from collections import Counter
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
@@ -26,8 +30,25 @@ from fairsharing_mcp.validation import validate_record_id
 logger = logging.getLogger(__name__)
 
 
-@app.mcp.tool()
-async def get_record(record_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_record",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_record(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get detailed information about a specific FAIRsharing record.
 
     Args:
@@ -108,9 +129,27 @@ async def get_record(record_id: int, output_format: str = "markdown") -> str:
         return f"Error fetching record: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_record_graph",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_record_graph(
-    record_id: int, summary_mode: bool = False, output_format: str = "markdown"
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    summary_mode: Annotated[
+        bool, Field(default=False, description="Return summary instead of full details")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Get and analyze the knowledge graph around a record.
 
@@ -339,8 +378,27 @@ async def get_record_graph(
         return f"Error fetching graph: {e}"
 
 
-@app.mcp.tool()
-async def get_record_types(bypass_cache: bool = False, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_record_types",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_record_types(
+    bypass_cache: Annotated[
+        bool, Field(default=False, description="Bypass response cache")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get all record types with descriptions.
 
     Record types are more specific classifications within each registry,
@@ -411,16 +469,45 @@ async def get_record_types(bypass_cache: bool = False, output_format: str = "mar
         return f"Error fetching record types: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_filter_records_by_date",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def filter_records_by_date(
-    query: str = "*",
-    min_year: int | None = None,
-    max_year: int | None = None,
-    registry: list[str] | None = None,
-    limit: int = 10,
-    use_updated_at: bool = False,
-    max_scan: int | None = None,
-    output_format: str = "markdown",
+    query: Annotated[str, Field(default="*", max_length=500, description="Search query")] = "*",
+    min_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Minimum creation year (inclusive)"),
+    ] = None,
+    max_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Maximum creation year (inclusive)"),
+    ] = None,
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    limit: Annotated[
+        int, Field(default=10, ge=1, le=200, description="Maximum records to return")
+    ] = 10,
+    use_updated_at: Annotated[
+        bool, Field(default=False, description="Use updatedAt instead of createdAt")
+    ] = False,
+    max_scan: Annotated[
+        int | None, Field(default=None, ge=1, le=2000, description="Maximum records to scan")
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Filter records by creation or update year (client-side filtering).
 
@@ -568,10 +655,26 @@ async def filter_records_by_date(
         return f"Error filtering by date: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_records_batch",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_records_batch(
-    record_ids: list[int],
-    output_format: str = "markdown",
+    record_ids: Annotated[
+        list[int], Field(min_length=2, max_length=50, description="List of record IDs")
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Fetch multiple records by ID in a single call.
 
@@ -662,12 +765,30 @@ async def get_records_batch(
         return f"Error fetching records batch: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_referencing_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_referencing_records(
-    record_id: int,
-    relationship: str | None = None,
-    registry: str | None = None,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    relationship: Annotated[
+        str | None, Field(default=None, description="Relationship type filter")
+    ] = None,
+    registry: Annotated[
+        str | None, Field(default=None, description="Registry filter (Standard, Database, Policy)")
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find records that reference (point to) a given record — reverse lookup.
 

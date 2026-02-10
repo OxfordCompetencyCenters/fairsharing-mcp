@@ -3,6 +3,10 @@
 import json
 import logging
 from collections import Counter, deque
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
@@ -15,8 +19,25 @@ from fairsharing_mcp.queries import (
 logger = logging.getLogger(__name__)
 
 
-@app.mcp.tool()
-async def analyze_record_ecosystem(record_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_analyze_record_ecosystem",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def analyze_record_ecosystem(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Analyze the full ecosystem around a record: what implements it, recommends it, extends it, etc.
 
     For standards: shows which databases implement it, which policies recommend it,
@@ -210,9 +231,25 @@ async def analyze_record_ecosystem(record_id: int, output_format: str = "markdow
         return f"Error analyzing ecosystem: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_record_connections",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_record_connections(
-    record_id_1: int, record_id_2: int, output_format: str = "markdown"
+    record_id_1: Annotated[int, Field(ge=1, description="First FAIRsharing record ID")],
+    record_id_2: Annotated[int, Field(ge=1, description="Second FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find how two records are connected in the knowledge graph.
 
@@ -411,8 +448,28 @@ async def find_record_connections(
         return f"Error finding connections: {e}"
 
 
-@app.mcp.tool()
-async def find_graph_hubs(record_id: int, top_n: int = 25, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_find_graph_hubs",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def find_graph_hubs(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    top_n: Annotated[
+        int, Field(default=25, ge=1, le=100, description="Number of top results")
+    ] = 25,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Find the most connected hub nodes in a record's knowledge graph.
 
     NOTE: Analyzes a single record's local knowledge graph (1 API call). Use
@@ -531,8 +588,24 @@ async def find_graph_hubs(record_id: int, top_n: int = 25, output_format: str = 
         return f"Error analyzing hubs: {e}"
 
 
-@app.mcp.tool()
-async def get_relationship_types(output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_relationship_types",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_relationship_types(
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get all possible relationship types between FAIRsharing records.
 
     Returns the vocabulary of relationship labels used to connect records,
@@ -616,8 +689,25 @@ async def get_relationship_types(output_format: str = "markdown") -> str:
         return f"Error fetching relationship types: {e}"
 
 
-@app.mcp.tool()
-async def get_collection_contents(record_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_collection_contents",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_collection_contents(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get all records that belong to a specific FAIRsharing collection.
 
     Collections in FAIRsharing group related standards, databases, and policies.
@@ -783,9 +873,33 @@ async def get_collection_contents(record_id: int, output_format: str = "markdown
         return f"Error fetching collection contents: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_trace_influence_chain",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def trace_influence_chain(
-    record_id: int, direction: str = "downstream", depth: int = 2, output_format: str = "markdown"
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    direction: Annotated[
+        str,
+        Field(
+            default="downstream",
+            pattern="^(upstream|downstream|both)$",
+            description="Traversal direction",
+        ),
+    ] = "downstream",
+    depth: Annotated[int, Field(default=2, ge=1, le=3, description="Traversal depth")] = 2,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Trace multi-hop influence chains for any record.
 
@@ -919,9 +1033,25 @@ async def trace_influence_chain(
         return f"Error tracing influence: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_detect_circular_dependencies",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def detect_circular_dependencies(
-    record_id: int, depth: int = 3, output_format: str = "markdown"
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    depth: Annotated[int, Field(default=3, ge=1, le=5, description="Traversal depth")] = 3,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Detect logical loops in the knowledge graph starting from a record.
 

@@ -3,6 +3,10 @@
 import json
 import logging
 import re
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
@@ -17,30 +21,73 @@ from fairsharing_mcp.queries import (
 logger = logging.getLogger(__name__)
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_search_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def search_records(
-    query: str | None = None,
-    registry: list[str] | None = None,
-    record_type: list[str] | None = None,
-    status: list[str] | None = None,
-    subjects: list[str] | None = None,
-    domains: list[str] | None = None,
-    taxonomies: list[str] | None = None,
-    countries: list[str] | None = None,
-    organisations: list[str] | None = None,
-    user_defined_tags: list[str] | None = None,
-    licences: list[str] | None = None,
-    journals: list[str] | None = None,
-    is_recommended: bool | None = None,
-    is_approved: bool | None = None,
-    is_maintained: bool | None = None,
-    has_publication: bool | None = None,
-    is_implemented: bool | None = None,
-    search_and: bool = True,
-    page: int = 1,
-    per_page: int = 20,
-    fallback_on_empty: bool = False,
-    output_format: str = "markdown",
+    query: Annotated[
+        str | None, Field(default=None, max_length=500, description="Search query")
+    ] = None,
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    record_type: Annotated[
+        list[str] | None, Field(default=None, description="Record type filter")
+    ] = None,
+    status: Annotated[list[str] | None, Field(default=None, description="Status filter")] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    domains: Annotated[list[str] | None, Field(default=None, description="Domain filter")] = None,
+    taxonomies: Annotated[
+        list[str] | None, Field(default=None, description="Taxonomy filter")
+    ] = None,
+    countries: Annotated[
+        list[str] | None, Field(default=None, description="Country filter")
+    ] = None,
+    organisations: Annotated[
+        list[str] | None, Field(default=None, description="Organisation filter")
+    ] = None,
+    user_defined_tags: Annotated[
+        list[str] | None, Field(default=None, description="User-defined tag filter")
+    ] = None,
+    licences: Annotated[list[str] | None, Field(default=None, description="Licence filter")] = None,
+    journals: Annotated[list[str] | None, Field(default=None, description="Journal filter")] = None,
+    is_recommended: Annotated[
+        bool | None, Field(default=None, description="Filter by recommended status")
+    ] = None,
+    is_approved: Annotated[
+        bool | None, Field(default=None, description="Filter by approved status")
+    ] = None,
+    is_maintained: Annotated[
+        bool | None, Field(default=None, description="Filter by maintenance status")
+    ] = None,
+    has_publication: Annotated[
+        bool | None, Field(default=None, description="Filter by publication status")
+    ] = None,
+    is_implemented: Annotated[
+        bool | None, Field(default=None, description="Filter by implementation status")
+    ] = None,
+    search_and: Annotated[
+        bool, Field(default=True, description="Use AND logic for filters")
+    ] = True,
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=20, ge=1, le=50, description="Results per page")] = 20,
+    fallback_on_empty: Annotated[
+        bool, Field(default=False, description="Progressively relax filters if no results")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Search FAIRsharing records with powerful filters.
 
@@ -227,16 +274,37 @@ async def search_records(
         return f"Error searching records: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_search_records_by_license",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def search_records_by_license(
-    licence: str,
-    registry: list[str] | None = None,
-    record_type: list[str] | None = None,
-    status: list[str] | None = None,
-    subjects: list[str] | None = None,
-    page: int = 1,
-    per_page: int = 20,
-    output_format: str = "markdown",
+    licence: Annotated[
+        str, Field(min_length=1, max_length=500, description="Licence name to filter by")
+    ],
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    record_type: Annotated[
+        list[str] | None, Field(default=None, description="Record type filter")
+    ] = None,
+    status: Annotated[list[str] | None, Field(default=None, description="Status filter")] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=20, ge=1, le=50, description="Results per page")] = 20,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Search FAIRsharing records by licence (e.g. CC0, CC-BY, MIT).
 
@@ -271,25 +339,68 @@ async def search_records_by_license(
     )
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_count_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def count_records(
-    query: str | None = None,
-    registry: list[str] | None = None,
-    record_type: list[str] | None = None,
-    status: list[str] | None = None,
-    subjects: list[str] | None = None,
-    domains: list[str] | None = None,
-    taxonomies: list[str] | None = None,
-    countries: list[str] | None = None,
-    organisations: list[str] | None = None,
-    is_recommended: bool | None = None,
-    is_maintained: bool | None = None,
-    has_publication: bool | None = None,
-    is_implemented: bool | None = None,
-    search_and: bool = True,
-    min_year: int | None = None,
-    max_year: int | None = None,
-    output_format: str = "markdown",
+    query: Annotated[
+        str | None, Field(default=None, max_length=500, description="Search query")
+    ] = None,
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    record_type: Annotated[
+        list[str] | None, Field(default=None, description="Record type filter")
+    ] = None,
+    status: Annotated[list[str] | None, Field(default=None, description="Status filter")] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    domains: Annotated[list[str] | None, Field(default=None, description="Domain filter")] = None,
+    taxonomies: Annotated[
+        list[str] | None, Field(default=None, description="Taxonomy filter")
+    ] = None,
+    countries: Annotated[
+        list[str] | None, Field(default=None, description="Country filter")
+    ] = None,
+    organisations: Annotated[
+        list[str] | None, Field(default=None, description="Organisation filter")
+    ] = None,
+    is_recommended: Annotated[
+        bool | None, Field(default=None, description="Filter by recommended status")
+    ] = None,
+    is_maintained: Annotated[
+        bool | None, Field(default=None, description="Filter by maintenance status")
+    ] = None,
+    has_publication: Annotated[
+        bool | None, Field(default=None, description="Filter by publication status")
+    ] = None,
+    is_implemented: Annotated[
+        bool | None, Field(default=None, description="Filter by implementation status")
+    ] = None,
+    search_and: Annotated[
+        bool, Field(default=True, description="Use AND logic for filters")
+    ] = True,
+    min_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Minimum creation year (inclusive)"),
+    ] = None,
+    max_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Maximum creation year (inclusive)"),
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Count records matching filters without returning full data.
 
@@ -434,25 +545,70 @@ async def count_records(
         return f"Error counting records: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_count_fair_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def count_fair_records(
-    query: str | None = None,
-    registry: list[str] | None = None,
-    record_type: list[str] | None = None,
-    subjects: list[str] | None = None,
-    domains: list[str] | None = None,
-    uses_persistent_identifier: bool | None = None,
-    has_preservation_policy: bool | None = None,
-    has_resource_sustainability: bool | None = None,
-    data_access: str | None = None,
-    data_curation: str | None = None,
-    recommends_database: bool | None = None,
-    recommends_standard: bool | None = None,
-    is_maintained: bool | None = None,
-    is_recommended: bool | None = None,
-    min_year: int | None = None,
-    max_year: int | None = None,
-    output_format: str = "markdown",
+    query: Annotated[
+        str | None, Field(default=None, max_length=500, description="Search query")
+    ] = None,
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    record_type: Annotated[
+        list[str] | None, Field(default=None, description="Record type filter")
+    ] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    domains: Annotated[list[str] | None, Field(default=None, description="Domain filter")] = None,
+    uses_persistent_identifier: Annotated[
+        bool | None, Field(default=None, description="Filter by persistent identifier usage")
+    ] = None,
+    has_preservation_policy: Annotated[
+        bool | None, Field(default=None, description="Filter by preservation policy")
+    ] = None,
+    has_resource_sustainability: Annotated[
+        bool | None, Field(default=None, description="Filter by resource sustainability")
+    ] = None,
+    data_access: Annotated[
+        str | None, Field(default=None, description="Data access condition filter")
+    ] = None,
+    data_curation: Annotated[
+        str | None, Field(default=None, description="Data curation level filter")
+    ] = None,
+    recommends_database: Annotated[
+        bool | None, Field(default=None, description="Filter by database recommendation")
+    ] = None,
+    recommends_standard: Annotated[
+        bool | None, Field(default=None, description="Filter by standard recommendation")
+    ] = None,
+    is_maintained: Annotated[
+        bool | None, Field(default=None, description="Filter by maintenance status")
+    ] = None,
+    is_recommended: Annotated[
+        bool | None, Field(default=None, description="Filter by recommended status")
+    ] = None,
+    min_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Minimum creation year (inclusive)"),
+    ] = None,
+    max_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Maximum creation year (inclusive)"),
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Count records matching FAIR quality indicator filters.
 
@@ -600,35 +756,92 @@ async def count_fair_records(
         return f"Error counting FAIR records: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_advanced_filter_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def advanced_filter_records(
-    query: str | None = None,
-    registry: list[str] | None = None,
-    record_type: list[str] | None = None,
-    status: list[str] | None = None,
-    subjects: list[str] | None = None,
-    domains: list[str] | None = None,
-    taxonomies: list[str] | None = None,
-    user_defined_tags: list[str] | None = None,
-    is_recommended: bool | None = None,
-    is_approved: bool | None = None,
-    is_maintained: bool | None = None,
-    has_publication: bool | None = None,
-    is_implemented: bool | None = None,
-    uses_persistent_identifier: bool | None = None,
-    has_preservation_policy: bool | None = None,
-    has_resource_sustainability: bool | None = None,
-    data_access: str | None = None,
-    data_curation: str | None = None,
-    data_deposition_condition: str | None = None,
-    citation_to_publications: str | None = None,
-    data_contact_info: str | None = None,
-    data_versioning: str | None = None,
-    recommends_database: bool | None = None,
-    recommends_standard: bool | None = None,
-    page: int = 1,
-    per_page: int = 25,
-    output_format: str = "markdown",
+    query: Annotated[
+        str | None, Field(default=None, max_length=500, description="Search query")
+    ] = None,
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    record_type: Annotated[
+        list[str] | None, Field(default=None, description="Record type filter")
+    ] = None,
+    status: Annotated[list[str] | None, Field(default=None, description="Status filter")] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    domains: Annotated[list[str] | None, Field(default=None, description="Domain filter")] = None,
+    taxonomies: Annotated[
+        list[str] | None, Field(default=None, description="Taxonomy filter")
+    ] = None,
+    user_defined_tags: Annotated[
+        list[str] | None, Field(default=None, description="User-defined tag filter")
+    ] = None,
+    is_recommended: Annotated[
+        bool | None, Field(default=None, description="Filter by recommended status")
+    ] = None,
+    is_approved: Annotated[
+        bool | None, Field(default=None, description="Filter by approved status")
+    ] = None,
+    is_maintained: Annotated[
+        bool | None, Field(default=None, description="Filter by maintenance status")
+    ] = None,
+    has_publication: Annotated[
+        bool | None, Field(default=None, description="Filter by publication status")
+    ] = None,
+    is_implemented: Annotated[
+        bool | None, Field(default=None, description="Filter by implementation status")
+    ] = None,
+    uses_persistent_identifier: Annotated[
+        bool | None, Field(default=None, description="Filter by persistent identifier usage")
+    ] = None,
+    has_preservation_policy: Annotated[
+        bool | None, Field(default=None, description="Filter by preservation policy")
+    ] = None,
+    has_resource_sustainability: Annotated[
+        bool | None, Field(default=None, description="Filter by resource sustainability")
+    ] = None,
+    data_access: Annotated[
+        str | None, Field(default=None, description="Data access condition filter")
+    ] = None,
+    data_curation: Annotated[
+        str | None, Field(default=None, description="Data curation level filter")
+    ] = None,
+    data_deposition_condition: Annotated[
+        str | None, Field(default=None, description="Data deposition condition filter")
+    ] = None,
+    citation_to_publications: Annotated[
+        str | None, Field(default=None, description="Citation to publications filter")
+    ] = None,
+    data_contact_info: Annotated[
+        str | None, Field(default=None, description="Data contact information filter")
+    ] = None,
+    data_versioning: Annotated[
+        str | None, Field(default=None, description="Data versioning filter")
+    ] = None,
+    recommends_database: Annotated[
+        bool | None, Field(default=None, description="Filter by database recommendation")
+    ] = None,
+    recommends_standard: Annotated[
+        bool | None, Field(default=None, description="Filter by standard recommendation")
+    ] = None,
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=25, ge=1, le=50, description="Results per page")] = 25,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Advanced record filtering using ALL multiTagFilter parameters.
 
@@ -848,8 +1061,25 @@ async def advanced_filter_records(
         return f"Error in advanced filter: {e}"
 
 
-@app.mcp.tool()
-async def search_by_doi(doi: str, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_search_by_doi",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def search_by_doi(
+    doi: Annotated[str, Field(min_length=1, max_length=500, description="DOI or FAIRsharing URL")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Look up a FAIRsharing record by its DOI.
 
     Accepts a full DOI (e.g. "10.25504/FAIRsharing.2abjs5"), a DOI URL

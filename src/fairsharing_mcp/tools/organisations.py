@@ -4,6 +4,10 @@ import asyncio
 import json
 import logging
 from collections import Counter
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
@@ -31,12 +35,28 @@ def _org_to_dict(o: dict) -> dict:
     }
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_list_organisations",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def list_organisations(
-    page: int = 1,
-    per_page: int = 50,
-    bypass_cache: bool = False,
-    output_format: str = "markdown",
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=50, ge=1, le=100, description="Results per page")] = 50,
+    bypass_cache: Annotated[
+        bool, Field(default=False, description="If True, fetch fresh data from the API")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """List organisations in FAIRsharing.
 
@@ -107,8 +127,25 @@ async def list_organisations(
         return f"Error listing organisations: {e}"
 
 
-@app.mcp.tool()
-async def search_organisations(query: str, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_search_organisations",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def search_organisations(
+    query: Annotated[str, Field(min_length=1, max_length=500, description="Search query")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Search organisations by text.
 
     Args:
@@ -164,13 +201,30 @@ async def search_organisations(query: str, output_format: str = "markdown") -> s
         return f"Error searching organisations: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_records_by_organisation",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_records_by_organisation(
-    organisation: str,
-    registry: list[str] | None = None,
-    page: int = 1,
-    per_page: int = 20,
-    output_format: str = "markdown",
+    organisation: Annotated[str, Field(min_length=1, description="Organisation name")],
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Registry filter (Standard, Database, Policy)"),
+    ] = None,
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=20, ge=1, le=50, description="Results per page")] = 20,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """List FAIRsharing records associated with a specific organisation.
 
@@ -258,12 +312,30 @@ async def get_records_by_organisation(
         return f"Error fetching records by organisation: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_list_countries",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def list_countries(
-    page: int = 1,
-    per_page: int = 100,
-    bypass_cache: bool = False,
-    output_format: str = "markdown",
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[
+        int, Field(default=100, ge=1, le=250, description="Results per page")
+    ] = 100,
+    bypass_cache: Annotated[
+        bool, Field(default=False, description="If True, fetch fresh data from the API")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """List all countries in FAIRsharing.
 
@@ -330,12 +402,28 @@ async def list_countries(
         return f"Error listing countries: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_country_landscape",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_country_landscape(
-    country: str,
-    subject: str | None = None,
-    include_deprecated: bool = False,
-    output_format: str = "markdown",
+    country: Annotated[str, Field(min_length=1, description="Country name")],
+    subject: Annotated[str | None, Field(default=None, description="Subject filter")] = None,
+    include_deprecated: Annotated[
+        bool, Field(default=False, description="Include deprecated records")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Comprehensive profile of a SINGLE country's presence in FAIRsharing.
 
@@ -553,11 +641,25 @@ async def analyze_country_landscape(
         return f"Error analyzing country landscape: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_regional_distribution",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_regional_distribution(
-    regions: list[str],
-    subject: str | None = None,
-    output_format: str = "markdown",
+    regions: Annotated[list[str], Field(min_length=1, description="List of region names")],
+    subject: Annotated[str | None, Field(default=None, description="Subject filter")] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare resource counts across multiple countries in one call.
 

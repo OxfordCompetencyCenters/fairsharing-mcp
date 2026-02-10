@@ -3,6 +3,10 @@
 import json
 import logging
 from collections import Counter
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
@@ -293,10 +297,24 @@ def _score_standard_comprehensive(record: dict) -> dict:
     }
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_standards_for_database",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_standards_for_database(
-    record_id: int,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find all standards used by or related to a specific database.
 
@@ -483,11 +501,27 @@ async def find_standards_for_database(
         return f"Error finding standards: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_databases_for_standard",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_databases_for_standard(
-    record_id: int,
-    countries: list[str] | None = None,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    countries: Annotated[
+        list[str] | None, Field(default=None, description="Country filter")
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find all databases that implement or use a specific standard.
 
@@ -673,11 +707,27 @@ async def find_databases_for_standard(
         return f"Error finding databases: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_standard_adoption",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_standard_adoption(
-    record_id: int,
-    subject: str | None = None,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    subject: Annotated[
+        str | None, Field(default=None, description="Subject context for the analysis")
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Analyze adoption of a standard: which databases implement it, policies recommend it, collections include it.
 
@@ -928,10 +978,24 @@ async def analyze_standard_adoption(
         return f"Error analyzing adoption: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_standard_quality_profile",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_standard_quality_profile(
-    record_id: int,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Generate a quality profile and score for a Standard.
 
@@ -1017,15 +1081,39 @@ async def get_standard_quality_profile(
         return f"Error scoring standard: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compute_maturity_index",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compute_maturity_index(
-    top_n: int = 10,
-    bottom_n: int = 10,
-    subjects: list[str] | None = None,
-    weight_adoption: float = 0.6,
-    weight_policy: float = 0.3,
-    weight_stability: float = 0.1,
-    output_format: str = "markdown",
+    top_n: Annotated[
+        int, Field(default=10, ge=1, le=100, description="Number of top results")
+    ] = 10,
+    bottom_n: Annotated[
+        int, Field(default=10, ge=1, le=100, description="Number of bottom results")
+    ] = 10,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    weight_adoption: Annotated[
+        float, Field(default=0.6, ge=0, le=1, description="Weight for adoption score")
+    ] = 0.6,
+    weight_policy: Annotated[
+        float, Field(default=0.3, ge=0, le=1, description="Weight for policy score")
+    ] = 0.3,
+    weight_stability: Annotated[
+        float, Field(default=0.1, ge=0, le=1, description="Weight for stability score")
+    ] = 0.1,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compute a Standards Maturity Index (SMI) across the platform and return ranked results.
 
@@ -1319,12 +1407,31 @@ async def compute_maturity_index(
         return f"Error computing maturity index: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_emerging_standards",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_emerging_standards(
-    min_year: int | None = None,
-    subjects: list[str] | None = None,
-    max_results: int = 20,
-    output_format: str = "markdown",
+    min_year: Annotated[
+        int | None,
+        Field(default=None, ge=1990, le=2030, description="Minimum creation year (inclusive)"),
+    ] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    max_results: Annotated[
+        int, Field(default=20, ge=1, le=100, description="Maximum results to return")
+    ] = 20,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find genuinely emerging standards — recently created with low-but-nonzero adoption.
 
@@ -1589,11 +1696,27 @@ async def find_emerging_standards(
         return f"Error finding emerging standards: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_endorsed_but_unadopted",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_endorsed_but_unadopted(
-    subjects: list[str] | None = None,
-    max_results: int = 20,
-    output_format: str = "markdown",
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    max_results: Annotated[
+        int, Field(default=20, ge=1, le=100, description="Maximum results to return")
+    ] = 20,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find standards recommended by policies but NOT implemented by any database.
 

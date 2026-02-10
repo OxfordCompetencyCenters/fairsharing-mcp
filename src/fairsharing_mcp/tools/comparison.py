@@ -3,6 +3,10 @@
 import asyncio
 import json
 from collections import Counter, deque
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app, helpers
 from fairsharing_mcp.client import FAIRsharingError
@@ -14,9 +18,25 @@ from fairsharing_mcp.queries import (
 from fairsharing_mcp.validation import validate_record_id
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compare_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compare_records(
-    record_id_1: int, record_id_2: int, output_format: str = "markdown"
+    record_id_1: Annotated[int, Field(ge=1, description="First FAIRsharing record ID")],
+    record_id_2: Annotated[int, Field(ge=1, description="Second FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare two FAIRsharing records side by side.
 
@@ -215,8 +235,27 @@ async def compare_records(
         return f"Error comparing records: {e}"
 
 
-@app.mcp.tool()
-async def compare_multiple_records(record_ids: list[int], output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_compare_multiple_records",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def compare_multiple_records(
+    record_ids: Annotated[
+        list[int], Field(min_length=2, max_length=50, description="List of record IDs")
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Compare 2-10 FAIRsharing records side by side.
 
     Generalizes compare_records to support N-way comparison. Fetches all records,
@@ -465,11 +504,27 @@ async def compare_multiple_records(record_ids: list[int], output_format: str = "
         return f"Error comparing multiple records: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compare_subject_landscapes",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compare_subject_landscapes(
-    subjects: list[str],
-    include_deprecated: bool = False,
-    output_format: str = "markdown",
+    subjects: Annotated[list[str], Field(min_length=1, description="Subject names to compare")],
+    include_deprecated: Annotated[
+        bool, Field(default=False, description="Include deprecated records")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare resource counts across multiple subjects in a single matrix.
 
@@ -626,8 +681,25 @@ async def compare_subject_landscapes(
         return f"Error comparing subject landscapes: {e}"
 
 
-@app.mcp.tool()
-async def analyze_deprecation_impact(record_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_analyze_deprecation_impact",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def analyze_deprecation_impact(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Assess the impact of a deprecated record on the ecosystem.
 
     Identifies active records that still rely on a deprecated standard or database.
@@ -742,9 +814,25 @@ async def analyze_deprecation_impact(record_id: int, output_format: str = "markd
         return f"Error analyzing deprecation impact: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_check_policy_database_compliance",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def check_policy_database_compliance(
-    policy_id: int, database_id: int, output_format: str = "markdown"
+    policy_id: Annotated[int, Field(ge=1, description="Policy record ID")],
+    database_id: Annotated[int, Field(ge=1, description="Database record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Cross-reference a policy's recommended standards with a database's implemented standards.
 
@@ -906,9 +994,25 @@ async def check_policy_database_compliance(
         return f"Error checking compliance: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compare_collections",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compare_collections(
-    collection_id_1: int, collection_id_2: int, output_format: str = "markdown"
+    collection_id_1: Annotated[int, Field(ge=1, description="First collection record ID")],
+    collection_id_2: Annotated[int, Field(ge=1, description="Second collection record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare the contents of two FAIRsharing Collections.
 
@@ -1035,11 +1139,30 @@ async def compare_collections(
         return f"Error comparing collections: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_find_compliant_standards",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def find_compliant_standards(
-    policy_ids: list[int],
-    database_ids: list[int] | None = None,
-    output_format: str = "markdown",
+    policy_ids: Annotated[
+        list[int], Field(min_length=2, max_length=5, description="List of policy record IDs")
+    ],
+    database_ids: Annotated[
+        list[int] | None,
+        Field(default=None, min_length=1, max_length=20, description="List of database record IDs"),
+    ] = None,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find standards recommended by ALL given policies, optionally filtered by database implementation.
 
@@ -1312,11 +1435,28 @@ async def find_compliant_standards(
         return f"Error finding compliant standards: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_assess_dmp_compliance",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def assess_dmp_compliance(
-    policy_id: int,
-    database_ids: list[int],
-    output_format: str = "markdown",
+    policy_id: Annotated[int, Field(ge=1, description="Policy record ID")],
+    database_ids: Annotated[
+        list[int],
+        Field(min_length=1, max_length=20, description="List of database record IDs"),
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Generate a complete DMP compliance plan for one policy against 1-5 databases.
 
@@ -1635,11 +1775,27 @@ async def assess_dmp_compliance(
         return f"Error assessing DMP compliance: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_transitive_impact",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_transitive_impact(
-    record_id: int,
-    max_depth: int = 3,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    max_depth: Annotated[
+        int, Field(default=3, ge=1, le=5, description="Maximum traversal depth")
+    ] = 3,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Perform multi-hop deprecation impact analysis via BFS.
 

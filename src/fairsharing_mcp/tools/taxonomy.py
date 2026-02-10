@@ -3,6 +3,10 @@
 import json
 import logging
 from collections import Counter
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
@@ -64,12 +68,28 @@ def _hierarchy_to_dict(item: dict) -> dict:
     return result
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_list_subjects",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def list_subjects(
-    page: int = 1,
-    per_page: int = 50,
-    bypass_cache: bool = False,
-    output_format: str = "markdown",
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=50, ge=1, le=100, description="Results per page")] = 50,
+    bypass_cache: Annotated[
+        bool, Field(default=False, description="If True, fetch fresh data from the API")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """List all scientific subjects (paginated).
 
@@ -140,8 +160,25 @@ async def list_subjects(
         return f"Error listing subjects: {e}"
 
 
-@app.mcp.tool()
-async def search_subjects(query: str, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_search_subjects",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def search_subjects(
+    query: Annotated[str, Field(min_length=1, max_length=500, description="Search query")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Search subjects by text.
 
     Args:
@@ -194,8 +231,25 @@ async def search_subjects(query: str, output_format: str = "markdown") -> str:
         return f"Error searching subjects: {e}"
 
 
-@app.mcp.tool()
-async def get_subject(subject_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_subject",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_subject(
+    subject_id: Annotated[int, Field(ge=1, description="Subject taxonomy ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get a subject with its hierarchy (parents, children, ancestors).
 
     Args:
@@ -223,12 +277,28 @@ async def get_subject(subject_id: int, output_format: str = "markdown") -> str:
         return f"Error fetching subject: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_list_domains",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def list_domains(
-    page: int = 1,
-    per_page: int = 50,
-    bypass_cache: bool = False,
-    output_format: str = "markdown",
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=50, ge=1, le=100, description="Results per page")] = 50,
+    bypass_cache: Annotated[
+        bool, Field(default=False, description="If True, fetch fresh data from the API")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """List all technical domains (paginated).
 
@@ -299,8 +369,25 @@ async def list_domains(
         return f"Error listing domains: {e}"
 
 
-@app.mcp.tool()
-async def search_domains(query: str, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_search_domains",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def search_domains(
+    query: Annotated[str, Field(min_length=1, max_length=500, description="Search query")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Search domains by text.
 
     Args:
@@ -353,8 +440,25 @@ async def search_domains(query: str, output_format: str = "markdown") -> str:
         return f"Error searching domains: {e}"
 
 
-@app.mcp.tool()
-async def get_domain(domain_id: int, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_get_domain",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def get_domain(
+    domain_id: Annotated[int, Field(ge=1, description="Domain taxonomy ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Get a domain with its hierarchy (parents, children, ancestors).
 
     Args:
@@ -382,12 +486,28 @@ async def get_domain(domain_id: int, output_format: str = "markdown") -> str:
         return f"Error fetching domain: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_list_taxonomies",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def list_taxonomies(
-    page: int = 1,
-    per_page: int = 50,
-    bypass_cache: bool = False,
-    output_format: str = "markdown",
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=50, ge=1, le=100, description="Results per page")] = 50,
+    bypass_cache: Annotated[
+        bool, Field(default=False, description="If True, fetch fresh data from the API")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """List taxonomies (species) used in FAIRsharing records.
 
@@ -451,8 +571,25 @@ async def list_taxonomies(
         return f"Error listing taxonomies: {e}"
 
 
-@app.mcp.tool()
-async def search_taxonomies(query: str, output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_search_taxonomies",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def search_taxonomies(
+    query: Annotated[str, Field(min_length=1, max_length=500, description="Search query")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Search taxonomies (species) by text.
 
     Args:
@@ -501,8 +638,24 @@ async def search_taxonomies(query: str, output_format: str = "markdown") -> str:
         return f"Error searching taxonomies: {e}"
 
 
-@app.mcp.tool()
-async def browse_subject_hierarchy(output_format: str = "markdown") -> str:
+@app.mcp.tool(
+    name="fairsharing_browse_subject_hierarchy",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def browse_subject_hierarchy(
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
     """Browse the hierarchical subject classification tree.
 
     Returns the top-level scientific subjects and their children,
@@ -600,11 +753,29 @@ async def browse_subject_hierarchy(output_format: str = "markdown") -> str:
         return f"Error browsing subjects: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_subject_landscape",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_subject_landscape(
-    subject: str,
-    include_deprecated: bool = False,
-    output_format: str = "markdown",
+    subject: Annotated[
+        str, Field(min_length=1, description="Subject name (e.g., 'Genomics', 'Proteomics')")
+    ],
+    include_deprecated: Annotated[
+        bool, Field(default=False, description="Include deprecated records")
+    ] = False,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Analyze the resource landscape for a scientific subject.
 
@@ -761,10 +932,24 @@ async def analyze_subject_landscape(
         return f"Error analyzing landscape: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_analyze_taxonomy_landscape",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def analyze_taxonomy_landscape(
-    taxonomies: list[str],
-    output_format: str = "markdown",
+    taxonomies: Annotated[list[str], Field(min_length=1, description="List of taxonomy names")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare resource coverage across different species/taxonomies.
 

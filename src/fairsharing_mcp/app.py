@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Initialize FastMCP server
-mcp = FastMCP("fairsharing")
+mcp = FastMCP("fairsharing_mcp")
 
 # Initialize client lazily (will be created on first use)
 _client: FAIRsharingClient | None = None

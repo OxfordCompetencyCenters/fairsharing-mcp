@@ -1,6 +1,10 @@
 """FAIRsharing MCP tools — FAIR quality assessment and database indicators."""
 
 import json
+from typing import Annotated
+
+from mcp.types import ToolAnnotations
+from pydantic import Field
 
 from fairsharing_mcp import app, config, helpers
 from fairsharing_mcp.client import FAIRsharingError
@@ -19,23 +23,57 @@ from fairsharing_mcp.tools.standards import _score_standard, _score_standard_com
 from fairsharing_mcp.validation import validate_record_id
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_assess_database_indicators",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def assess_database_indicators(
-    query: str | None = None,
-    subjects: list[str] | None = None,
-    domains: list[str] | None = None,
-    data_access: str | None = None,
-    data_curation: str | None = None,
-    data_deposition_condition: str | None = None,
-    data_versioning: str | None = None,
-    data_contact_info: str | None = None,
-    uses_persistent_identifier: bool | None = None,
-    has_preservation_policy: bool | None = None,
-    has_resource_sustainability: bool | None = None,
-    is_maintained: bool | None = None,
-    page: int = 1,
-    per_page: int = 25,
-    output_format: str = "markdown",
+    query: Annotated[
+        str | None, Field(default=None, max_length=500, description="Text search query")
+    ] = None,
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    domains: Annotated[list[str] | None, Field(default=None, description="Domain filter")] = None,
+    data_access: Annotated[
+        str | None, Field(default=None, description="Data access condition filter")
+    ] = None,
+    data_curation: Annotated[
+        str | None, Field(default=None, description="Data curation process filter")
+    ] = None,
+    data_deposition_condition: Annotated[
+        str | None, Field(default=None, description="Data deposition condition filter")
+    ] = None,
+    data_versioning: Annotated[
+        str | None, Field(default=None, description="Data versioning policy filter")
+    ] = None,
+    data_contact_info: Annotated[
+        str | None, Field(default=None, description="Data contact information filter")
+    ] = None,
+    uses_persistent_identifier: Annotated[
+        bool | None, Field(default=None, description="Filter by persistent identifier usage")
+    ] = None,
+    has_preservation_policy: Annotated[
+        bool | None, Field(default=None, description="Filter by preservation policy")
+    ] = None,
+    has_resource_sustainability: Annotated[
+        bool | None, Field(default=None, description="Filter by resource sustainability")
+    ] = None,
+    is_maintained: Annotated[
+        bool | None, Field(default=None, description="Filter by maintenance status")
+    ] = None,
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[int, Field(default=25, ge=1, le=50, description="Results per page")] = 25,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Find databases matching FAIR quality indicators.
 
@@ -241,10 +279,24 @@ async def assess_database_indicators(
         return f"Error assessing databases: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_database_quality_profile",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_database_quality_profile(
-    record_id: int,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Get a database's FAIR quality indicators as a detailed profile.
 
@@ -302,10 +354,26 @@ async def get_database_quality_profile(
         return f"Error fetching database quality profile: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compare_databases_quality",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compare_databases_quality(
-    record_ids: list[int],
-    output_format: str = "markdown",
+    record_ids: Annotated[
+        list[int], Field(min_length=2, max_length=50, description="List of record IDs")
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare FAIR quality indicators across multiple databases side by side.
 
@@ -458,13 +526,31 @@ async def compare_databases_quality(
         return f"Error comparing databases: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_rank_databases_by_quality",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def rank_databases_by_quality(
-    subjects: list[str] | None = None,
-    domains: list[str] | None = None,
-    countries: list[str] | None = None,
-    max_results: int = 15,
-    output_format: str = "markdown",
+    subjects: Annotated[list[str] | None, Field(default=None, description="Subject filter")] = None,
+    domains: Annotated[list[str] | None, Field(default=None, description="Domain filter")] = None,
+    countries: Annotated[
+        list[str] | None, Field(default=None, description="Country filter")
+    ] = None,
+    max_results: Annotated[
+        int, Field(default=15, ge=1, le=100, description="Maximum results to return")
+    ] = 15,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Rank databases by FAIR quality score.
 
@@ -742,10 +828,24 @@ async def _compute_quality_for_record(record_id: int) -> dict:
     }
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_unified_quality_score",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_unified_quality_score(
-    record_id: int,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Get a normalized 0-100 quality score for any record (Database, Standard, or Policy).
 
@@ -799,10 +899,26 @@ async def get_unified_quality_score(
         return f"Error computing unified quality score: {e}"
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_compare_unified_quality",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def compare_unified_quality(
-    record_ids: list[int],
-    output_format: str = "markdown",
+    record_ids: Annotated[
+        list[int], Field(min_length=2, max_length=50, description="List of record IDs")
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Compare 2-10 records of ANY registry type on a common 0-100 quality scale.
 
@@ -1031,10 +1147,24 @@ def _score_database_comprehensive(record: dict) -> dict:
     }
 
 
-@app.mcp.tool()
+@app.mcp.tool(
+    name="fairsharing_get_comprehensive_quality_profile",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
 async def get_comprehensive_quality_profile(
-    record_id: int,
-    output_format: str = "markdown",
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
 ) -> str:
     """Get a comprehensive quality profile with domain-specific indicators.
 
