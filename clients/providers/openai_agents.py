@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from agents import Agent, Runner
-from agents.mcp import MCPServerStdio
+from agents.mcp import MCPServerStdio, MCPServerStreamableHttp
 
 from ..base import BaseLLMProvider
 from ..config import ClientConfig
@@ -137,47 +137,55 @@ detect_communities(record_id=...) → compute_betweenness_centrality(...)
 
 
 class OpenAIAgentsProvider(BaseLLMProvider):
-    """LLM provider using the OpenAI Agents SDK with MCP over STDIO."""
+    """LLM provider using the OpenAI Agents SDK with MCP over STDIO or HTTP."""
 
     def __init__(self, config: ClientConfig) -> None:
         super().__init__(config)
-        self._mcp_server: MCPServerStdio | None = None
+        self._mcp_server: MCPServerStdio | MCPServerStreamableHttp | None = None
         self._agent: Agent | None = None
         # Tracks the OpenAI Agents SDK conversation state for multi-turn
         self._input_list: list = []
 
     async def setup(self) -> None:
-        # Project root: this file is at clients/providers/openai_agents.py
-        project_root = Path(__file__).resolve().parent.parent.parent
-        src_dir = str(project_root / "src")
+        if self.config.mcp_transport == "streamable-http":
+            # Connect to a remote MCP server over HTTP
+            self._mcp_server = MCPServerStreamableHttp(
+                params={"url": self.config.mcp_server_url},
+                client_session_timeout_seconds=120,
+            )
+        else:
+            # Default: launch MCP server as a local subprocess over STDIO
+            project_root = Path(__file__).resolve().parent.parent.parent
+            src_dir = str(project_root / "src")
 
-        # Inherit the full parent environment so the subprocess has HOME,
-        # VIRTUAL_ENV, TMPDIR, etc.  Override only what we need.
-        subprocess_env = os.environ.copy()
-        subprocess_env["FAIRSHARING_API_KEY"] = self.config.fairsharing_api_key
-        subprocess_env["PYTHONPATH"] = src_dir
+            # Inherit the full parent environment so the subprocess has HOME,
+            # VIRTUAL_ENV, TMPDIR, etc.  Override only what we need.
+            subprocess_env = os.environ.copy()
+            subprocess_env["FAIRSHARING_API_KEY"] = self.config.fairsharing_api_key
+            subprocess_env["PYTHONPATH"] = src_dir
 
-        # Local dev uses "uv run fairsharing-mcp" (the default).
-        # Everywhere else (Azure, Docker, etc.), run the MCP server as a
-        # Python module using the current interpreter so virtualenv packages
-        # and PYTHONPATH are available — no console script needed.
-        command = self.config.mcp_server_command
-        args = self.config.mcp_server_args
-        if command != "uv":
-            command = sys.executable
-            args = ["-m", "fairsharing_mcp.server"]
+            # Local dev uses "uv run fairsharing-mcp" (the default).
+            # Everywhere else (Azure, Docker, etc.), run the MCP server as a
+            # Python module using the current interpreter so virtualenv packages
+            # and PYTHONPATH are available — no console script needed.
+            command = self.config.mcp_server_command
+            args = self.config.mcp_server_args
+            if command != "uv":
+                command = sys.executable
+                args = ["-m", "fairsharing_mcp.server"]
 
-        self._mcp_server = MCPServerStdio(
-            params={
-                "command": command,
-                "args": args,
-                "env": subprocess_env,
-            },
-            # Some tools (compare_policies_by_country, analyze_country_landscape)
-            # make many sequential API calls; the default 5s timeout is too short.
-            client_session_timeout_seconds=120,
-        )
-        # Enter the MCP server context manager to start the subprocess
+            self._mcp_server = MCPServerStdio(
+                params={
+                    "command": command,
+                    "args": args,
+                    "env": subprocess_env,
+                },
+                # Some tools (compare_policies_by_country, analyze_country_landscape)
+                # make many sequential API calls; the default 5s timeout is too short.
+                client_session_timeout_seconds=120,
+            )
+
+        # Enter the MCP server context manager to start the connection
         await self._mcp_server.__aenter__()
 
         self._agent = Agent(

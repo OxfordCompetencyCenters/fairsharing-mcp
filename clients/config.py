@@ -17,6 +17,8 @@ class ClientConfig:
     fairsharing_api_key: str
     mcp_server_command: str
     mcp_server_args: list[str]
+    mcp_transport: str
+    mcp_server_url: str | None
     provider: str
     model: str
     openai_api_key: str | None
@@ -48,6 +50,16 @@ def load_config() -> ClientConfig:
     raw_args = os.environ.get("MCP_SERVER_ARGS", "run,fairsharing-mcp")
     mcp_server_args = [a.strip() for a in raw_args.split(",") if a.strip()]
 
+    mcp_transport = os.environ.get("MCP_TRANSPORT", "stdio").lower()
+    mcp_server_url = os.environ.get("MCP_SERVER_URL")
+
+    if mcp_transport == "streamable-http" and not mcp_server_url:
+        print(
+            "Error: MCP_SERVER_URL is required when MCP_TRANSPORT=streamable-http.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     openai_api_key = os.environ.get("OPENAI_API_KEY")
     anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
     conversation_log_dir = os.environ.get("CONVERSATION_LOG_DIR", "")
@@ -64,6 +76,8 @@ def load_config() -> ClientConfig:
         fairsharing_api_key=fairsharing_api_key,
         mcp_server_command=mcp_server_command,
         mcp_server_args=mcp_server_args,
+        mcp_transport=mcp_transport,
+        mcp_server_url=mcp_server_url,
         provider=provider,
         model=model,
         openai_api_key=openai_api_key,

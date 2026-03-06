@@ -22,7 +22,18 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 # Initialize FastMCP server
-mcp = FastMCP("fairsharing_mcp")
+# When running as HTTP endpoint, bind to all interfaces and allow external hosts.
+_mcp_kwargs: dict = {}
+if os.getenv("MCP_TRANSPORT", "stdio") == "streamable-http":
+    from mcp.server.fastmcp.server import TransportSecuritySettings
+
+    _mcp_kwargs["host"] = os.getenv("FASTMCP_HOST", "0.0.0.0")
+    _mcp_kwargs["port"] = int(os.getenv("FASTMCP_PORT", "8000"))
+    _mcp_kwargs["transport_security"] = TransportSecuritySettings(
+        enable_dns_rebinding_protection=False,
+    )
+
+mcp = FastMCP("fairsharing_mcp", **_mcp_kwargs)
 
 # Initialize client lazily (will be created on first use)
 _client: FAIRsharingClient | None = None
