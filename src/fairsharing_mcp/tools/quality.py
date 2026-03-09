@@ -12,6 +12,7 @@ from fairsharing_mcp.constants import DATABASE_COMPREHENSIVE_WEIGHTS, DATABASE_F
 from fairsharing_mcp.formatters import (
     build_fairsharing_url,
     compute_fair_score_detailed,
+    extract_fair_indicators,
     format_database_quality_profile,
     normalize_quality_score,
 )
@@ -110,6 +111,9 @@ async def assess_database_indicators(
     per_page = min(max(1, per_page), 50)
     page = max(1, page)
 
+    # NOTE: FAIR indicator API filter arguments (dataAccessCondition, dataCuration, etc.)
+    # are deprecated — they return 0 results. Filtering is now applied client-side
+    # using values extracted from each record's metadata blob via extract_fair_indicators().
     variables: dict = {
         "registry": ["Database"],
         "status": ["ready"],
@@ -124,27 +128,44 @@ async def assess_database_indicators(
         variables["domains"] = domains
     if is_maintained is not None:
         variables["isMaintained"] = is_maintained
-    if uses_persistent_identifier is not None:
-        variables["usesPersistentIdentifier"] = uses_persistent_identifier
-    if has_preservation_policy is not None:
-        variables["dataPreservationPolicy"] = has_preservation_policy
-    if has_resource_sustainability is not None:
-        variables["resourceSustainability"] = has_resource_sustainability
-    if data_access:
-        variables["dataAccessCondition"] = [data_access]
-    if data_curation:
-        variables["dataCuration"] = [data_curation]
-    if data_deposition_condition:
-        variables["dataDepositionCondition"] = [data_deposition_condition]
-    if data_versioning:
-        variables["dataVersioning"] = [data_versioning]
-    if data_contact_info:
-        variables["dataContactInformation"] = [data_contact_info]
 
     try:
         data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
         # multiTagFilter returns a flat list, not {records, totalCount, totalPages}
-        records = data.get("multiTagFilter", [])
+        all_records = data.get("multiTagFilter", [])
+
+        # Apply client-side FAIR indicator filtering using metadata blob extraction
+        records = []
+        for r in all_records:
+            indicators = extract_fair_indicators(r)
+            if data_access and indicators.get("dataAccessCondition") != data_access:
+                continue
+            if data_curation and indicators.get("dataCuration") != data_curation:
+                continue
+            if data_deposition_condition and (
+                indicators.get("dataDepositionCondition") != data_deposition_condition
+            ):
+                continue
+            if data_versioning and indicators.get("dataVersioning") != data_versioning:
+                continue
+            if data_contact_info and indicators.get("dataContactInformation") != data_contact_info:
+                continue
+            if uses_persistent_identifier is not None:
+                upi = indicators.get("usesPersistentIdentifier")
+                upi_bool = upi if isinstance(upi, bool) else (upi == "yes" if upi else False)
+                if upi_bool != uses_persistent_identifier:
+                    continue
+            if has_preservation_policy is not None:
+                pp = indicators.get("dataPreservationPolicy")
+                pp_bool = pp if isinstance(pp, bool) else (pp == "yes" if pp else False)
+                if pp_bool != has_preservation_policy:
+                    continue
+            if has_resource_sustainability is not None:
+                rs = indicators.get("resourceSustainability")
+                rs_bool = rs if isinstance(rs, bool) else (rs == "yes" if rs else False)
+                if rs_bool != has_resource_sustainability:
+                    continue
+            records.append(r)
 
         if not records:
             filter_parts = []
@@ -217,21 +238,21 @@ async def assess_database_indicators(
         if subjects:
             filters_used.append(f"subjects={subjects}")
         if data_access:
-            filters_used.append(f"data_access={data_access}")
+            filters_used.append(f"data_access={data_access} (client-side)")
         if data_curation:
-            filters_used.append(f"curation={data_curation}")
+            filters_used.append(f"curation={data_curation} (client-side)")
         if data_deposition_condition:
-            filters_used.append(f"deposition={data_deposition_condition}")
+            filters_used.append(f"deposition={data_deposition_condition} (client-side)")
         if data_versioning:
-            filters_used.append(f"versioning={data_versioning}")
+            filters_used.append(f"versioning={data_versioning} (client-side)")
         if data_contact_info:
-            filters_used.append(f"contact_info={data_contact_info}")
+            filters_used.append(f"contact_info={data_contact_info} (client-side)")
         if uses_persistent_identifier:
-            filters_used.append("persistent IDs")
+            filters_used.append("persistent IDs (client-side)")
         if has_preservation_policy:
-            filters_used.append("preservation policy")
+            filters_used.append("preservation policy (client-side)")
         if has_resource_sustainability:
-            filters_used.append("resource sustainability")
+            filters_used.append("resource sustainability (client-side)")
         if is_maintained:
             filters_used.append("maintained")
 
@@ -240,6 +261,24 @@ async def assess_database_indicators(
         ]
         if filters_used:
             lines.append(f"**Filters:** {', '.join(filters_used)}")
+        has_fair_filters = any(
+            [
+                data_access,
+                data_curation,
+                data_deposition_condition,
+                data_versioning,
+                data_contact_info,
+                uses_persistent_identifier is not None,
+                has_preservation_policy is not None,
+                has_resource_sustainability is not None,
+            ]
+        )
+        if has_fair_filters:
+            lines.append(
+                "_Note: FAIR indicator filters applied client-side (API-level FAIR indicator "
+                "filters are deprecated). Results reflect metadata extracted from each record's "
+                "metadata blob._"
+            )
         lines.append("")
 
         for i, record in enumerate(page_records, start_idx + 1):

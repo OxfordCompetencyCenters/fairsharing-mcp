@@ -1,5 +1,7 @@
 """FAIRsharing MCP Server - Formatting helpers for record display."""
 
+import json as _json
+
 from fairsharing_mcp import config
 from fairsharing_mcp.constants import (
     DATABASE_FAIR_INDICATOR_FIELDS,
@@ -50,6 +52,45 @@ def escape_md_table(value: str) -> str:
     Replaces pipe characters and newlines that would break table formatting.
     """
     return value.replace("|", "\\|").replace("\n", " ").replace("\r", "")
+
+
+def extract_fair_indicators(record: dict) -> dict:
+    """Extract FAIR indicator values from a record's metadata JSON blob.
+
+    The FAIRsharing API no longer exposes FAIR indicator fields as direct GraphQL
+    fields on FairsharingRecord. They are now only available inside the ``metadata``
+    JSON blob with snake_case keys. This helper extracts them and returns a dict
+    with camelCase keys matching the old direct field names for backwards compatibility.
+
+    For ``data_access_condition`` the value is a nested dict like ``{'type': 'open'}``
+    — this function extracts the ``type`` value automatically.
+    """
+    meta = record.get("metadata") or {}
+    if isinstance(meta, str):
+        try:
+            meta = _json.loads(meta)
+        except Exception:
+            meta = {}
+
+    def _get(key: str, nested_key: str | None = None):
+        val = meta.get(key)
+        if nested_key and isinstance(val, dict):
+            return val.get(nested_key)
+        if isinstance(val, dict):
+            return val.get("type") or val.get("value") or str(val)
+        return val
+
+    return {
+        "dataAccessCondition": _get("data_access_condition", "type"),
+        "dataCuration": _get("data_curation"),
+        "dataDepositionCondition": _get("data_deposition_condition"),
+        "citationToRelatedPublications": _get("citation_to_related_publications"),
+        "dataContactInformation": _get("data_contact_information"),
+        "dataVersioning": _get("data_versioning"),
+        "dataPreservationPolicy": _get("data_preservation_policy"),
+        "resourceSustainability": _get("resource_sustainability"),
+        "usesPersistentIdentifier": _get("uses_persistent_identifier"),
+    }
 
 
 def format_record_summary(record: dict) -> str:
@@ -215,6 +256,16 @@ def format_record_detail(record: dict) -> str:
             label = d.get("label", "Unknown")
             iri = d.get("iri", "")
             lines.append(f"- {label}" + (f" ({iri})" if iri else ""))
+        lines.append("")
+
+    # Object Types
+    obj_types = [
+        ot["label"]
+        for ot in record.get("objectTypes", [])
+        if ot.get("label") and ot["label"] != "object type not found"
+    ]
+    if obj_types:
+        lines.append(f"**Object Types:** {', '.join(obj_types)}")
         lines.append("")
 
     # Taxonomies

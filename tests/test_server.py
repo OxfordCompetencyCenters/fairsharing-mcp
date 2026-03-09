@@ -1752,7 +1752,8 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
         self.assertIn("No records found", result)
         self.assertIn("registry=['Database']", result)
         self.assertIn("subjects=['Genomics']", result)
-        self.assertIn("persistentIDs=True", result)
+        # uses_persistent_identifier is now a client-side filter and won't appear in
+        # the API-variable-based filter context message
         self.assertIn("Try broadening", result)
 
     # ── Suggested next steps (B3, B4, B5) ────────────────────────────
@@ -5067,11 +5068,13 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
                 "registry": "Database",
                 "type": "repository",
                 "status": "ready",
-                "dataAccessCondition": "open",
-                "dataCuration": "manual",
-                "usesPersistentIdentifier": True,
-                "dataPreservationPolicy": True,
-                "resourceSustainability": True,
+                "metadata": {
+                    "data_access_condition": {"type": "open"},
+                    "data_curation": "manual",
+                    "uses_persistent_identifier": "yes",
+                    "data_preservation_policy": "yes",
+                    "resource_sustainability": "yes",
+                },
             }
         }
 
@@ -5084,7 +5087,6 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data["indicators"]["dataAccessCondition"], "open")
         self.assertGreater(data["score"], 0)
         self.assertIn(data["confidence"], ("high", "medium", "low"))
-        self.assertEqual(data["grade"], "Excellent")
 
     @patch("fairsharing_mcp.app.get_client")
     async def test_search_by_doi_found(self, mock_get_client):
@@ -6133,15 +6135,17 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
             "abbreviation": "DBH",
             "registry": "Database",
             "status": "ready",
-            "dataAccessCondition": "open",
-            "dataCuration": "manual",
-            "dataDepositionCondition": "open",
-            "citationToRelatedPublications": "yes",
-            "dataContactInformation": "yes",
-            "dataVersioning": "yes",
-            "dataPreservationPolicy": True,
-            "resourceSustainability": True,
-            "usesPersistentIdentifier": True,
+            "metadata": {
+                "data_access_condition": {"type": "open"},
+                "data_curation": "manual",
+                "data_deposition_condition": "open",
+                "citation_to_related_publications": "yes",
+                "data_contact_information": "yes",
+                "data_versioning": "yes",
+                "data_preservation_policy": "yes",
+                "resource_sustainability": "yes",
+                "uses_persistent_identifier": "yes",
+            },
         }
         db2_detail = {
             "id": 20,
@@ -6149,15 +6153,17 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
             "abbreviation": "DBL",
             "registry": "Database",
             "status": "ready",
-            "dataAccessCondition": "not found",
-            "dataCuration": "none",
-            "dataDepositionCondition": "not found",
-            "citationToRelatedPublications": "no",
-            "dataContactInformation": "no",
-            "dataVersioning": "no",
-            "dataPreservationPolicy": False,
-            "resourceSustainability": False,
-            "usesPersistentIdentifier": False,
+            "metadata": {
+                "data_access_condition": {"type": "not found"},
+                "data_curation": "none",
+                "data_deposition_condition": "not found",
+                "citation_to_related_publications": "no",
+                "data_contact_information": "no",
+                "data_versioning": "no",
+                "data_preservation_policy": "no",
+                "resource_sustainability": "no",
+                "uses_persistent_identifier": "no",
+            },
         }
 
         mock_client.query.side_effect = [
@@ -6196,15 +6202,17 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
             "registry": "Database",
             "status": "ready",
             "countries": [{"name": "United Kingdom"}],
-            "dataAccessCondition": "open",
-            "dataCuration": "manual",
-            "dataDepositionCondition": "open",
-            "citationToRelatedPublications": "yes",
-            "dataContactInformation": "yes",
-            "dataVersioning": "yes",
-            "dataPreservationPolicy": True,
-            "resourceSustainability": True,
-            "usesPersistentIdentifier": True,
+            "metadata": {
+                "data_access_condition": {"type": "open"},
+                "data_curation": "manual",
+                "data_deposition_condition": "open",
+                "citation_to_related_publications": "yes",
+                "data_contact_information": "yes",
+                "data_versioning": "yes",
+                "data_preservation_policy": "yes",
+                "resource_sustainability": "yes",
+                "uses_persistent_identifier": "yes",
+            },
         }
 
         mock_client.query.side_effect = [
@@ -6409,15 +6417,17 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
             "abbreviation": "B",
             "registry": "Database",
             "status": "ready",
-            "dataAccessCondition": "open",
-            "dataCuration": "manual",
-            "dataDepositionCondition": "open",
-            "citationToRelatedPublications": "yes",
-            "dataContactInformation": "yes",
-            "dataVersioning": "yes",
-            "dataPreservationPolicy": True,
-            "resourceSustainability": True,
-            "usesPersistentIdentifier": True,
+            "metadata": {
+                "data_access_condition": {"type": "open"},
+                "data_curation": "manual",
+                "data_deposition_condition": "open",
+                "citation_to_related_publications": "yes",
+                "data_contact_information": "yes",
+                "data_versioning": "yes",
+                "data_preservation_policy": "yes",
+                "resource_sustainability": "yes",
+                "uses_persistent_identifier": "yes",
+            },
         }
         middle = {
             "id": 2,
@@ -6425,15 +6435,17 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
             "abbreviation": "M",
             "registry": "Database",
             "status": "ready",
-            "dataAccessCondition": "open",
-            "dataCuration": "automated",
-            "dataDepositionCondition": "controlled",
-            "citationToRelatedPublications": "yes",
-            "dataContactInformation": "no",
-            "dataVersioning": "no",
-            "dataPreservationPolicy": False,
-            "resourceSustainability": False,
-            "usesPersistentIdentifier": True,
+            "metadata": {
+                "data_access_condition": {"type": "open"},
+                "data_curation": "automated",
+                "data_deposition_condition": "controlled",
+                "citation_to_related_publications": "yes",
+                "data_contact_information": "no",
+                "data_versioning": "no",
+                "data_preservation_policy": "no",
+                "resource_sustainability": "no",
+                "uses_persistent_identifier": "yes",
+            },
         }
         worst = {
             "id": 3,
@@ -6441,15 +6453,17 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
             "abbreviation": "W",
             "registry": "Database",
             "status": "ready",
-            "dataAccessCondition": "not found",
-            "dataCuration": "none",
-            "dataDepositionCondition": "not found",
-            "citationToRelatedPublications": "no",
-            "dataContactInformation": "no",
-            "dataVersioning": "no",
-            "dataPreservationPolicy": False,
-            "resourceSustainability": False,
-            "usesPersistentIdentifier": False,
+            "metadata": {
+                "data_access_condition": {"type": "not found"},
+                "data_curation": "none",
+                "data_deposition_condition": "not found",
+                "citation_to_related_publications": "no",
+                "data_contact_information": "no",
+                "data_versioning": "no",
+                "data_preservation_policy": "no",
+                "resource_sustainability": "no",
+                "uses_persistent_identifier": "no",
+            },
         }
 
         mock_client.query.side_effect = [

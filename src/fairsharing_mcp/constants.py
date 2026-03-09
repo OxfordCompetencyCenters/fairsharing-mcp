@@ -80,6 +80,22 @@ POLICY_DMP_FIELDS = [
     "updatingOfDmp",
 ]
 
+DATA_ACCESS_CONDITION_VALUES = ["open", "partially open", "controlled", "not found"]
+OBJECT_TYPE_VALUES = ["dataset", "image", "model", "publication", "object type not found"]
+
+# Mapping from camelCase API names to metadata snake_case keys (for reference)
+FAIR_INDICATOR_METADATA_KEYS = {
+    "dataAccessCondition": "data_access_condition",
+    "dataCuration": "data_curation",
+    "dataDepositionCondition": "data_deposition_condition",
+    "citationToRelatedPublications": "citation_to_related_publications",
+    "dataContactInformation": "data_contact_information",
+    "dataVersioning": "data_versioning",
+    "dataPreservationPolicy": "data_preservation_policy",
+    "resourceSustainability": "resource_sustainability",
+    "usesPersistentIdentifier": "uses_persistent_identifier",
+}
+
 DATABASE_FAIR_INDICATOR_FIELDS = [
     "dataAccessCondition",
     "dataCuration",

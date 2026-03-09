@@ -6,6 +6,7 @@ import logging
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingAuthError, FAIRsharingError
+from fairsharing_mcp.formatters import extract_fair_indicators
 from fairsharing_mcp.queries import (
     GET_DATABASE_QUALITY_QUERY,
     GET_POLICY_DETAIL_QUERY,
@@ -112,6 +113,9 @@ async def fetch_database_quality_with_fallback(record_id: int) -> dict | None:
     """Fetch a database record with FAIR indicators, falling back to basic query.
 
     Auth errors are re-raised immediately; transient errors trigger fallback.
+    After fetching, FAIR indicator values are extracted from the ``metadata`` blob
+    and merged into the record dict under their camelCase keys for backwards
+    compatibility with scoring and formatting code.
     """
     client = app.get_client()
     try:
@@ -119,6 +123,8 @@ async def fetch_database_quality_with_fallback(record_id: int) -> dict | None:
         record = data.get("fairsharingRecord")
         if record:
             logger.info("Database quality query succeeded for record %s", record_id)
+            indicators = extract_fair_indicators(record)
+            record.update(indicators)
             return record
     except FAIRsharingAuthError:
         raise  # Do not fall back on auth errors
@@ -131,6 +137,8 @@ async def fetch_database_quality_with_fallback(record_id: int) -> dict | None:
         record = data.get("fairsharingRecord")
         if record:
             logger.info("Basic record query fallback succeeded for record %s", record_id)
+            indicators = extract_fair_indicators(record)
+            record.update(indicators)
             return record
     except FAIRsharingAuthError:
         raise  # Do not swallow auth errors

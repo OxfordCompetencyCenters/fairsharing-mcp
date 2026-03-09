@@ -32,6 +32,7 @@ query SearchRecords(
             doi
             subjects { label }
             domains { label }
+            objectTypes { label }
             createdAt
         }
         totalCount
@@ -57,6 +58,7 @@ query GetRecord($id: ID!) {
         isApproved
         isMaintained
         isRecommended
+        metadata
         subjects { id label iri }
         domains { id label iri }
         taxonomies { id label iri }
@@ -65,6 +67,7 @@ query GetRecord($id: ID!) {
         publications { id title doi year journal }
         licenceLinks { licence { id name url } relation }
         userDefinedTags { id label }
+        objectTypes { label }
         recordAssociations {
             linkedRecord { id name registry type }
             recordAssocLabel
@@ -351,6 +354,7 @@ query MultiTagFilter(
         id name abbreviation registry type status doi createdAt
         subjects { label }
         domains { label }
+        objectTypes { label }
     }
 }
 """
@@ -396,30 +400,14 @@ query GetPolicyDetail($id: ID!) {
 GET_DATABASE_QUALITY_QUERY = """
 query GetDatabaseQuality($id: ID!) {
     fairsharingRecord(id: $id) {
-        id
-        name
-        abbreviation
-        description
-        doi
-        homepage
-        status
-        registry
-        type
-        createdAt
-        updatedAt
+        id name abbreviation description doi homepage status registry type
+        createdAt updatedAt
         subjects { id label }
         domains { id label }
         countries { id name code }
         organisations { id name }
-        dataAccessCondition
-        dataCuration
-        dataDepositionCondition
-        citationToRelatedPublications
-        dataContactInformation
-        dataVersioning
-        dataPreservationPolicy
-        resourceSustainability
-        usesPersistentIdentifier
+        objectTypes { label }
+        metadata
     }
 }
 """

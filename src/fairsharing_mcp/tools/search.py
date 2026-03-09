@@ -10,7 +10,11 @@ from pydantic import Field
 
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
-from fairsharing_mcp.formatters import build_fairsharing_url, format_record_summary
+from fairsharing_mcp.formatters import (
+    build_fairsharing_url,
+    extract_fair_indicators,
+    format_record_summary,
+)
 from fairsharing_mcp.helpers import matches_date_range
 from fairsharing_mcp.queries import (
     MULTI_TAG_FILTER_QUERY,
@@ -668,16 +672,9 @@ async def count_fair_records(
         variables["subjects"] = subjects
     if domains:
         variables["domains"] = domains
-    if uses_persistent_identifier is not None:
-        variables["usesPersistentIdentifier"] = uses_persistent_identifier
-    if has_preservation_policy is not None:
-        variables["dataPreservationPolicy"] = has_preservation_policy
-    if has_resource_sustainability is not None:
-        variables["resourceSustainability"] = has_resource_sustainability
-    if data_access:
-        variables["dataAccessCondition"] = [data_access]
-    if data_curation:
-        variables["dataCuration"] = [data_curation]
+    # NOTE: usesPersistentIdentifier, dataPreservationPolicy, resourceSustainability,
+    # dataAccessCondition, dataCuration are deprecated API-level filters.
+    # They are now applied client-side after fetching using extract_fair_indicators().
     if recommends_database is not None:
         variables["recommendsDatabase"] = recommends_database
     if recommends_standard is not None:
@@ -687,9 +684,46 @@ async def count_fair_records(
     if is_recommended is not None:
         variables["isRecommended"] = is_recommended
 
+    has_fair_filter = any(
+        [
+            uses_persistent_identifier is not None,
+            has_preservation_policy is not None,
+            has_resource_sustainability is not None,
+            data_access,
+            data_curation,
+        ]
+    )
+
     try:
         data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
         records = data.get("multiTagFilter", [])
+
+        # Apply client-side FAIR indicator filter using metadata blob extraction
+        if has_fair_filter:
+            filtered = []
+            for r in records:
+                indicators = extract_fair_indicators(r)
+                if data_access and indicators.get("dataAccessCondition") != data_access:
+                    continue
+                if data_curation and indicators.get("dataCuration") != data_curation:
+                    continue
+                if uses_persistent_identifier is not None:
+                    upi = indicators.get("usesPersistentIdentifier")
+                    upi_bool = upi if isinstance(upi, bool) else (upi == "yes" if upi else False)
+                    if upi_bool != uses_persistent_identifier:
+                        continue
+                if has_preservation_policy is not None:
+                    pp = indicators.get("dataPreservationPolicy")
+                    pp_bool = pp if isinstance(pp, bool) else (pp == "yes" if pp else False)
+                    if pp_bool != has_preservation_policy:
+                        continue
+                if has_resource_sustainability is not None:
+                    rs = indicators.get("resourceSustainability")
+                    rs_bool = rs if isinstance(rs, bool) else (rs == "yes" if rs else False)
+                    if rs_bool != has_resource_sustainability:
+                        continue
+                filtered.append(r)
+            records = filtered
 
         # Apply client-side date filter
         if has_date_filter:
@@ -838,6 +872,13 @@ async def advanced_filter_records(
     recommends_standard: Annotated[
         bool | None, Field(default=None, description="Filter by standard recommendation")
     ] = None,
+    object_types: Annotated[
+        list[str] | None,
+        Field(
+            default=None,
+            description="Filter by object types (client-side): 'dataset', 'image', 'model', 'publication'",
+        ),
+    ] = None,
     page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
     per_page: Annotated[int, Field(default=25, ge=1, le=50, description="Results per page")] = 25,
     output_format: Annotated[
@@ -885,18 +926,27 @@ async def advanced_filter_records(
         uses_persistent_identifier: Has persistent identifiers
         has_preservation_policy: Has preservation policy
         has_resource_sustainability: Has sustainability plan
-        data_access: Data access: "open", "partially open", "controlled", "not found"
-        data_curation: Curation: "manual", "automated", "manual/automated", "none", "not found"
-        data_deposition_condition: Deposition: "open", "controlled", "not applicable", "not found"
-        citation_to_publications: Citation availability: "yes", "no", "not found"
-        data_contact_info: Contact info: "yes", "no", "not found"
-        data_versioning: Versioning: "yes", "no", "not found"
+        data_access: Data access condition (client-side filter from metadata blob):
+            "open", "partially open", "controlled", "not found"
+        data_curation: Curation level (client-side): "manual", "automated", "manual/automated",
+            "none", "not found"
+        data_deposition_condition: Deposition condition (client-side): "open", "controlled",
+            "not applicable", "not found"
+        citation_to_publications: Citation availability (client-side): "yes", "no", "not found"
+        data_contact_info: Contact info (client-side): "yes", "no", "not found"
+        data_versioning: Versioning (client-side): "yes", "no", "not found"
         recommends_database: Recommends at least one database (policies)
         recommends_standard: Recommends at least one standard (policies)
+        object_types: Filter by object types (client-side from objectTypes field):
+            "dataset", "image", "model", "publication"
         page: Page number (client-side pagination)
         per_page: Results per page (default: 25, max: 50)
         output_format: Output format: "markdown" (default) for human-readable output,
             "json" for machine-readable structured data suitable for programmatic chaining.
+
+    Note: FAIR indicator filters (data_access, data_curation, etc.) are applied client-side
+    by extracting values from each record's metadata blob. API-level FAIR indicator filters
+    are deprecated and return 0 results.
 
     Returns:
         Matching records with details
@@ -934,24 +984,11 @@ async def advanced_filter_records(
         variables["hasPublication"] = has_publication
     if is_implemented is not None:
         variables["isImplemented"] = is_implemented
-    if uses_persistent_identifier is not None:
-        variables["usesPersistentIdentifier"] = uses_persistent_identifier
-    if has_preservation_policy is not None:
-        variables["dataPreservationPolicy"] = has_preservation_policy
-    if has_resource_sustainability is not None:
-        variables["resourceSustainability"] = has_resource_sustainability
-    if data_access:
-        variables["dataAccessCondition"] = [data_access]
-    if data_curation:
-        variables["dataCuration"] = [data_curation]
-    if data_deposition_condition:
-        variables["dataDepositionCondition"] = [data_deposition_condition]
-    if citation_to_publications:
-        variables["citationToRelatedPublications"] = [citation_to_publications]
-    if data_contact_info:
-        variables["dataContactInformation"] = [data_contact_info]
-    if data_versioning:
-        variables["dataVersioning"] = [data_versioning]
+    # NOTE: usesPersistentIdentifier, dataPreservationPolicy, resourceSustainability,
+    # dataAccessCondition, dataCuration, dataDepositionCondition,
+    # citationToRelatedPublications, dataContactInformation, dataVersioning
+    # are deprecated API-level filters — they return 0 results.
+    # These are now applied client-side after fetching using extract_fair_indicators().
     if recommends_database is not None:
         variables["recommendsDatabase"] = recommends_database
     if recommends_standard is not None:
@@ -959,7 +996,69 @@ async def advanced_filter_records(
 
     try:
         data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
-        records = data.get("multiTagFilter", [])
+        all_records = data.get("multiTagFilter", [])
+
+        # Apply client-side FAIR indicator filtering using metadata blob extraction
+        has_fair_filter = any(
+            [
+                data_access,
+                data_curation,
+                data_deposition_condition,
+                citation_to_publications,
+                data_contact_info,
+                data_versioning,
+                uses_persistent_identifier is not None,
+                has_preservation_policy is not None,
+                has_resource_sustainability is not None,
+                object_types,
+            ]
+        )
+        if has_fair_filter:
+            records = []
+            for r in all_records:
+                indicators = extract_fair_indicators(r)
+                if data_access and indicators.get("dataAccessCondition") != data_access:
+                    continue
+                if data_curation and indicators.get("dataCuration") != data_curation:
+                    continue
+                if data_deposition_condition and (
+                    indicators.get("dataDepositionCondition") != data_deposition_condition
+                ):
+                    continue
+                if citation_to_publications and (
+                    indicators.get("citationToRelatedPublications") != citation_to_publications
+                ):
+                    continue
+                if data_contact_info and (
+                    indicators.get("dataContactInformation") != data_contact_info
+                ):
+                    continue
+                if data_versioning and indicators.get("dataVersioning") != data_versioning:
+                    continue
+                if uses_persistent_identifier is not None:
+                    upi = indicators.get("usesPersistentIdentifier")
+                    upi_bool = upi if isinstance(upi, bool) else (upi == "yes" if upi else False)
+                    if upi_bool != uses_persistent_identifier:
+                        continue
+                if has_preservation_policy is not None:
+                    pp = indicators.get("dataPreservationPolicy")
+                    pp_bool = pp if isinstance(pp, bool) else (pp == "yes" if pp else False)
+                    if pp_bool != has_preservation_policy:
+                        continue
+                if has_resource_sustainability is not None:
+                    rs = indicators.get("resourceSustainability")
+                    rs_bool = rs if isinstance(rs, bool) else (rs == "yes" if rs else False)
+                    if rs_bool != has_resource_sustainability:
+                        continue
+                if object_types:
+                    rec_obj_types = [
+                        ot.get("label", "") for ot in r.get("objectTypes", []) if ot.get("label")
+                    ]
+                    if not any(ot in rec_obj_types for ot in object_types):
+                        continue
+                records.append(r)
+        else:
+            records = all_records
 
         if not records:
             # Build informative zero-result message with filter context
