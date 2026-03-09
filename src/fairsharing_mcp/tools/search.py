@@ -695,8 +695,37 @@ async def count_fair_records(
     )
 
     try:
-        data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
-        records = data.get("multiTagFilter", [])
+        if has_fair_filter:
+            # FAIR indicator filters require metadata, which multiTagFilter doesn't return.
+            # Switch to paginated SEARCH_RECORDS_QUERY which includes metadata.
+            search_vars: dict = {"perPage": 200, "searchAnd": True}
+            if query:
+                search_vars["q"] = query
+            if registry:
+                search_vars["registry"] = registry
+            if record_type:
+                search_vars["recordType"] = record_type
+            if subjects:
+                search_vars["subjects"] = subjects
+            if domains:
+                search_vars["domains"] = domains
+            if is_maintained is not None:
+                search_vars["isMaintained"] = is_maintained
+            if is_recommended is not None:
+                search_vars["isRecommended"] = is_recommended
+            records = []
+            page = 1
+            while True:
+                search_vars["page"] = page
+                pdata = await client.query(SEARCH_RECORDS_QUERY, search_vars)
+                presult = pdata.get("searchFairsharingRecords", {})
+                records.extend(presult.get("records", []))
+                if page >= presult.get("totalPages", 1):
+                    break
+                page += 1
+        else:
+            data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
+            records = data.get("multiTagFilter", [])
 
         # Apply client-side FAIR indicator filter using metadata blob extraction
         if has_fair_filter:
@@ -994,25 +1023,66 @@ async def advanced_filter_records(
     if recommends_standard is not None:
         variables["recommendsStandard"] = recommends_standard
 
+    # Determine if FAIR indicator filters are active (require metadata in response)
+    has_fair_filter = any(
+        [
+            data_access,
+            data_curation,
+            data_deposition_condition,
+            citation_to_publications,
+            data_contact_info,
+            data_versioning,
+            uses_persistent_identifier is not None,
+            has_preservation_policy is not None,
+            has_resource_sustainability is not None,
+            object_types,
+        ]
+    )
+
     try:
-        data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
-        all_records = data.get("multiTagFilter", [])
+        if has_fair_filter:
+            # FAIR indicator filters require metadata, which multiTagFilter doesn't return.
+            # Use paginated SEARCH_RECORDS_QUERY which includes metadata.
+            search_vars: dict = {"perPage": 200, "searchAnd": True}
+            if query:
+                search_vars["q"] = query
+            if registry:
+                search_vars["registry"] = registry
+            if record_type:
+                search_vars["recordType"] = record_type
+            if status:
+                search_vars["status"] = status
+            if subjects:
+                search_vars["subjects"] = subjects
+            if domains:
+                search_vars["domains"] = domains
+            if taxonomies:
+                search_vars["taxonomies"] = taxonomies
+            if is_recommended is not None:
+                search_vars["isRecommended"] = is_recommended
+            if is_approved is not None:
+                search_vars["isApproved"] = is_approved
+            if is_maintained is not None:
+                search_vars["isMaintained"] = is_maintained
+            if has_publication is not None:
+                search_vars["hasPublication"] = has_publication
+            if is_implemented is not None:
+                search_vars["isImplemented"] = is_implemented
+            all_records = []
+            page_num = 1
+            while True:
+                search_vars["page"] = page_num
+                pdata = await client.query(SEARCH_RECORDS_QUERY, search_vars)
+                presult = pdata.get("searchFairsharingRecords", {})
+                all_records.extend(presult.get("records", []))
+                if page_num >= presult.get("totalPages", 1):
+                    break
+                page_num += 1
+        else:
+            data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
+            all_records = data.get("multiTagFilter", [])
 
         # Apply client-side FAIR indicator filtering using metadata blob extraction
-        has_fair_filter = any(
-            [
-                data_access,
-                data_curation,
-                data_deposition_condition,
-                citation_to_publications,
-                data_contact_info,
-                data_versioning,
-                uses_persistent_identifier is not None,
-                has_preservation_policy is not None,
-                has_resource_sustainability is not None,
-                object_types,
-            ]
-        )
         if has_fair_filter:
             records = []
             for r in all_records:
@@ -1073,10 +1143,10 @@ async def advanced_filter_records(
                 filter_parts.append(f"status={variables['status']}")
             if variables.get("recordType"):
                 filter_parts.append(f"type={variables['recordType']}")
-            if variables.get("usesPersistentIdentifier") is not None:
-                filter_parts.append(f"persistentIDs={variables['usesPersistentIdentifier']}")
-            if variables.get("dataAccessCondition"):
-                filter_parts.append(f"dataAccess={variables['dataAccessCondition']}")
+            if uses_persistent_identifier is not None:
+                filter_parts.append(f"persistentIDs={uses_persistent_identifier}")
+            if data_access:
+                filter_parts.append(f"dataAccess={data_access}")
 
             msg = "No records found"
             if filter_parts:

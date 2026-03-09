@@ -34,6 +34,7 @@ query SearchRecords(
             domains { label }
             objectTypes { label }
             createdAt
+            metadata
         }
         totalCount
         totalPages
