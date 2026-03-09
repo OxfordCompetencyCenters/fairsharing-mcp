@@ -7,6 +7,7 @@ query SearchRecords(
     $subjects: [String!], $domains: [String!], $taxonomies: [String!],
     $countries: [String!], $organisations: [String!], $userDefinedTags: [String!],
     $licences: [String!], $journals: [String!],
+    $objectTypes: [String!],
     $isRecommended: Boolean, $isApproved: Boolean, $isMaintained: Boolean,
     $hasPublication: Boolean, $isImplemented: Boolean,
     $page: Int, $perPage: Int
@@ -17,6 +18,7 @@ query SearchRecords(
         subjects: $subjects, domains: $domains, taxonomies: $taxonomies,
         countries: $countries, organisations: $organisations, userDefinedTags: $userDefinedTags,
         licences: $licences, journals: $journals,
+        objectTypes: $objectTypes,
         isRecommended: $isRecommended, isApproved: $isApproved, isMaintained: $isMaintained,
         hasPublication: $hasPublication, isImplemented: $isImplemented,
         page: $page, perPage: $perPage
@@ -300,6 +302,7 @@ query SearchCompact(
     $registry: [String!], $recordType: [String!], $status: [String!],
     $subjects: [String!], $domains: [String!], $taxonomies: [String!],
     $countries: [String!], $organisations: [String!],
+    $objectTypes: [String!],
     $isRecommended: Boolean, $isMaintained: Boolean,
     $hasPublication: Boolean, $isImplemented: Boolean,
     $page: Int, $perPage: Int
@@ -309,6 +312,7 @@ query SearchCompact(
         fairsharingRegistry: $registry, recordType: $recordType, status: $status,
         subjects: $subjects, domains: $domains, taxonomies: $taxonomies,
         countries: $countries, organisations: $organisations,
+        objectTypes: $objectTypes,
         isRecommended: $isRecommended, isMaintained: $isMaintained,
         hasPublication: $hasPublication, isImplemented: $isImplemented,
         page: $page, perPage: $perPage

@@ -76,6 +76,13 @@ async def search_records(
     is_implemented: Annotated[
         bool | None, Field(default=None, description="Filter by implementation status")
     ] = None,
+    object_types: Annotated[
+        list[str] | None,
+        Field(
+            default=None,
+            description="Filter by object types: 'dataset', 'image', 'model', 'publication'",
+        ),
+    ] = None,
     search_and: Annotated[
         bool, Field(default=True, description="Use AND logic for filters")
     ] = True,
@@ -158,6 +165,7 @@ async def search_records(
         "isMaintained": is_maintained,
         "hasPublication": has_publication,
         "isImplemented": is_implemented,
+        "objectTypes": object_types,
     }
 
     for k, v in param_map.items():
@@ -392,6 +400,13 @@ async def count_records(
     is_implemented: Annotated[
         bool | None, Field(default=None, description="Filter by implementation status")
     ] = None,
+    object_types: Annotated[
+        list[str] | None,
+        Field(
+            default=None,
+            description="Filter by object types: 'dataset', 'image', 'model', 'publication'",
+        ),
+    ] = None,
     search_and: Annotated[
         bool, Field(default=True, description="Use AND logic for filters")
     ] = True,
@@ -471,6 +486,7 @@ async def count_records(
         "isMaintained": is_maintained,
         "hasPublication": has_publication,
         "isImplemented": is_implemented,
+        "objectTypes": object_types,
     }
 
     for k, v in param_map.items():
@@ -603,6 +619,13 @@ async def count_fair_records(
     is_recommended: Annotated[
         bool | None, Field(default=None, description="Filter by recommended status")
     ] = None,
+    object_types: Annotated[
+        list[str] | None,
+        Field(
+            default=None,
+            description="Filter by object types: 'dataset', 'image', 'model', 'publication'",
+        ),
+    ] = None,
     min_year: Annotated[
         int | None,
         Field(default=None, ge=1990, le=2030, description="Minimum creation year (inclusive)"),
@@ -693,11 +716,13 @@ async def count_fair_records(
             data_curation,
         ]
     )
+    # objectTypes is a server-side filter on SEARCH_RECORDS_QUERY (not on multiTagFilter),
+    # so force the SEARCH_RECORDS_QUERY path when object_types is specified.
+    needs_search_query = has_fair_filter or bool(object_types)
 
     try:
-        if has_fair_filter:
-            # FAIR indicator filters require metadata, which multiTagFilter doesn't return.
-            # Switch to paginated SEARCH_RECORDS_QUERY which includes metadata.
+        if needs_search_query:
+            # FAIR indicator filters require metadata; objectTypes requires SEARCH_RECORDS_QUERY.
             search_vars: dict = {"perPage": 200, "searchAnd": True}
             if query:
                 search_vars["q"] = query
@@ -713,6 +738,8 @@ async def count_fair_records(
                 search_vars["isMaintained"] = is_maintained
             if is_recommended is not None:
                 search_vars["isRecommended"] = is_recommended
+            if object_types:
+                search_vars["objectTypes"] = object_types
             records = []
             page = 1
             while True:
@@ -1068,6 +1095,8 @@ async def advanced_filter_records(
                 search_vars["hasPublication"] = has_publication
             if is_implemented is not None:
                 search_vars["isImplemented"] = is_implemented
+            if object_types:
+                search_vars["objectTypes"] = object_types
             all_records = []
             page_num = 1
             while True:
