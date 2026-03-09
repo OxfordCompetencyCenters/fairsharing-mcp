@@ -31,8 +31,10 @@ build/
 # Conversation logs (local)
 logs/conversations/
 
-# Documentation
-Documentation/
+# Binary document formats
+*.docx
+*.pdf
+Documentation/images/
 
 # Temp files
 ~$*
