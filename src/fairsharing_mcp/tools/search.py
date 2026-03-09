@@ -10,7 +10,7 @@ from pydantic import Field
 
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
-from fairsharing_mcp.formatters import format_record_summary
+from fairsharing_mcp.formatters import build_fairsharing_url, format_record_summary
 from fairsharing_mcp.helpers import matches_date_range
 from fairsharing_mcp.queries import (
     MULTI_TAG_FILTER_QUERY,
@@ -90,6 +90,11 @@ async def search_records(
     ] = "markdown",
 ) -> str:
     """Search FAIRsharing records with powerful filters.
+
+    Note: registry='Database' includes ALL Database subtypes (repositories, knowledgebases,
+    biobanks, ontologies, catalogues). Use record_type to filter to a specific subtype,
+    e.g. record_type=['repository'] for data repositories only, or
+    record_type=['knowledgebase'] for expert-curated annotation resources.
 
     Args:
         query: Text search query (searches name, description, etc.)
@@ -845,9 +850,13 @@ async def advanced_filter_records(
 ) -> str:
     """Advanced record filtering using ALL multiTagFilter parameters.
 
+    This tool is the equivalent of FAIRsharing's Advanced Search — it exposes every
+    parameter of the multiTagFilter API without restrictions. Use it when you need
+    to combine multiple filter criteria (FAIR indicators, boolean flags, subject/domain/
+    taxonomy/country filters, and recommendation flags) in a single query.
+
     Unlike assess_database_indicators which is locked to Database/ready, this tool
-    exposes every parameter of the multiTagFilter API without restrictions. Enables
-    queries like "find policies that recommend databases" or "find any record type
+    enables queries like "find policies that recommend databases" or "find any record type
     with persistent identifiers".
     The multiTagFilter API returns the full result set (no server-side pagination);
     pagination is applied client-side. Very broad filters may be slow.
@@ -1146,6 +1155,7 @@ async def search_by_doi(
 
         if output_format == "json":
             record = records[0]
+            rec_doi = record.get("doi")
             return json.dumps(
                 {
                     "doi": doi,
@@ -1156,7 +1166,8 @@ async def search_by_doi(
                         "registry": record.get("registry"),
                         "type": record.get("type"),
                         "status": record.get("status"),
-                        "doi": record.get("doi"),
+                        "doi": rec_doi,
+                        "fairsharing_url": build_fairsharing_url(rec_doi),
                     },
                 },
                 indent=2,
@@ -1176,6 +1187,7 @@ async def search_by_doi(
             rec_id = record.get("id", "")
             rec_doi = record.get("doi", "")
             status = record.get("status", "")
+            fs_url = build_fairsharing_url(rec_doi)
 
             entry = f"### {i}. {name}"
             if abbrev:
@@ -1183,7 +1195,11 @@ async def search_by_doi(
             lines.append(entry)
             lines.append(f"- **Registry:** {rec_registry} | **Type:** {rec_type}")
             lines.append(f"- **Status:** {status}")
-            if rec_doi:
+            if fs_url and rec_doi:
+                suffix = rec_doi.split("FAIRsharing.", 1)[1]
+                lines.append(f"- **FAIRsharing:** [FAIRsharing.{suffix}]({fs_url})")
+                lines.append(f"- **DOI:** {rec_doi}")
+            elif rec_doi:
                 lines.append(f"- **DOI:** {rec_doi}")
             lines.append(f"- **ID:** {rec_id}")
             lines.append("")

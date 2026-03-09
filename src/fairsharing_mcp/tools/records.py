@@ -12,6 +12,7 @@ from pydantic import Field
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.formatters import (
+    build_fairsharing_url,
     escape_md_table,
     format_record_detail,
     format_record_summary,
@@ -74,6 +75,7 @@ async def get_record(
             return f"No record found with ID {record_id}."
 
         if output_format == "json":
+            _doi = record.get("doi")
             # Return the raw API record data as structured JSON
             return json.dumps(
                 {
@@ -83,7 +85,8 @@ async def get_record(
                     "registry": record.get("registry"),
                     "type": record.get("type"),
                     "status": record.get("status"),
-                    "doi": record.get("doi"),
+                    "doi": _doi,
+                    "fairsharing_url": build_fairsharing_url(_doi),
                     "homepage": record.get("homepage"),
                     "description": record.get("description"),
                     "created_at": record.get("createdAt"),
@@ -727,6 +730,7 @@ async def get_records_batch(
         if output_format == "json":
             json_records = []
             for record in fetched:
+                _doi = record.get("doi")
                 json_records.append(
                     {
                         "id": record.get("id"),
@@ -735,7 +739,8 @@ async def get_records_batch(
                         "registry": record.get("registry"),
                         "type": record.get("type"),
                         "status": record.get("status"),
-                        "doi": record.get("doi"),
+                        "doi": _doi,
+                        "fairsharing_url": build_fairsharing_url(_doi),
                         "homepage": record.get("homepage"),
                         "description": record.get("description"),
                         "created_at": record.get("createdAt"),
@@ -912,3 +917,140 @@ async def find_referencing_records(
 
     except FAIRsharingError as e:
         return f"Error fetching reverse associations: {e}"
+
+
+@app.mcp.tool(
+    name="fairsharing_resolve_identifier",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def resolve_identifier(
+    identifier: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=500,
+            description="FAIRsharing numeric ID, DOI (10.25504/FAIRsharing.xxx), or FAIRsharing URL",
+        ),
+    ],
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
+    """Resolve any FAIRsharing identifier to its canonical URL, DOI, and numeric ID.
+
+    Accepts any of the three identifier forms:
+    - Numeric ID: e.g. "1398" or 1398
+    - DOI: e.g. "10.25504/FAIRsharing.1943d4"
+    - FAIRsharing URL: e.g. "https://fairsharing.org/FAIRsharing.1943d4"
+
+    Makes one API call to validate the record exists and returns all three
+    identifier forms plus basic record metadata.
+
+    Args:
+        identifier: A numeric ID, DOI, or FAIRsharing URL.
+        output_format: "markdown" (default) or "json".
+
+    Returns:
+        The canonical FAIRsharing URL, DOI, and numeric ID for the record.
+    """
+    import re
+
+    identifier = identifier.strip()
+    record_id: int | None = None
+
+    # Detect identifier type and extract numeric ID or DOI suffix for lookup
+    # Form 1: plain integer ID
+    if re.fullmatch(r"\d+", identifier):
+        try:
+            record_id = int(identifier)
+        except ValueError:
+            return f"Invalid numeric ID: {identifier}"
+
+    # Form 2: FAIRsharing URL → extract DOI suffix, search by DOI text
+    fs_match = re.match(r"https?://(?:www\.)?fairsharing\.org/(FAIRsharing\.\w+)", identifier)
+    if fs_match:
+        # Reconstruct full DOI for search
+        identifier = f"10.25504/{fs_match.group(1)}"
+
+    # Form 3: DOI URL → strip to bare DOI
+    doi_url_match = re.match(r"https?://doi\.org/(10\.\d+/.+)", identifier)
+    if doi_url_match:
+        identifier = doi_url_match.group(1)
+
+    client = app.get_client()
+
+    try:
+        if record_id is not None:
+            data = await client.query(GET_RECORD_QUERY, {"id": record_id})
+            record = data.get("fairsharingRecord")
+            if not record:
+                return f"No record found with ID {record_id}."
+        else:
+            # Search by DOI text
+            from fairsharing_mcp.queries import SEARCH_RECORDS_QUERY
+
+            data = await client.query(
+                SEARCH_RECORDS_QUERY, {"q": identifier, "page": 1, "perPage": 5}
+            )
+            result = data.get("searchFairsharingRecords", {})
+            records = result.get("records", [])
+            # Filter to exact DOI match
+            ident_lower = identifier.lower()
+            exact = [r for r in records if ident_lower in (r.get("doi") or "").lower()]
+            if not exact:
+                if output_format == "json":
+                    return json.dumps(
+                        {
+                            "identifier": identifier,
+                            "error": f"No record found matching '{identifier}'.",
+                        },
+                        indent=2,
+                    )
+                return f"No record found matching '{identifier}'."
+            record = exact[0]
+
+        rec_id = record.get("id")
+        rec_doi = record.get("doi")
+        fs_url = build_fairsharing_url(rec_doi)
+        name = record.get("name", "Unknown")
+        registry = record.get("registry", "")
+        rec_type = record.get("type", "")
+        status = record.get("status", "")
+
+        if output_format == "json":
+            return json.dumps(
+                {
+                    "id": rec_id,
+                    "name": name,
+                    "doi": rec_doi,
+                    "fairsharing_url": fs_url,
+                    "registry": registry,
+                    "type": rec_type,
+                    "status": status,
+                },
+                indent=2,
+            )
+
+        lines = [f"## Resolved: {name}", ""]
+        if fs_url and rec_doi:
+            suffix = rec_doi.split("FAIRsharing.", 1)[1]
+            lines.append(f"- **FAIRsharing URL:** [FAIRsharing.{suffix}]({fs_url})")
+            lines.append(f"- **DOI:** {rec_doi}")
+        elif rec_doi:
+            lines.append(f"- **DOI:** {rec_doi}")
+        lines.append(f"- **Numeric ID:** {rec_id}")
+        lines.append(f"- **Registry:** {registry} | **Type:** {rec_type}")
+        lines.append(f"- **Status:** {status}")
+        return "\n".join(lines)
+
+    except FAIRsharingError as e:
+        return f"Error resolving identifier: {e}"

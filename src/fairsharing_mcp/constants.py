@@ -11,6 +11,43 @@ Scoring weights (RELATIONSHIP_WEIGHTS, RELATIONSHIP_INFLUENCE_WEIGHTS):
   These are not empirically calibrated; adjust if ranking behaviour is refined.
 """
 
+RECORD_STATUS_DESCRIPTIONS = {
+    "ready": "Fully curated and publicly visible",
+    "in_development": "Being actively curated, not yet approved",
+    "uncertain": "Resource may no longer be available; under review",
+    "deprecated": "Resource is discontinued; record kept for historical reference",
+}
+
+RECORD_TYPE_DESCRIPTIONS = {
+    # Database registry subtypes
+    "repository": "A data repository — stores and provides access to datasets",
+    "knowledgebase": "A curated knowledge base with expert-annotated data",
+    "biobank": "A biological sample and associated data collection",
+    "catalogue": "An index or catalogue of other resources",
+    "ontology": "A formal representation of a domain's concepts and relationships",
+    "controlled vocabulary": "A standardised set of terms for annotation",
+    # Standard registry subtypes
+    "model/format": "A data model, schema, or file format",
+    "reporting guideline": "Minimum information checklist or reporting standard",
+    "identifier schema": "A system for assigning persistent identifiers",
+    "terminology artefact": "Terminologies and vocabularies for annotation",
+    # Policy registry subtypes
+    "journal": "A journal data sharing policy",
+    "journal publisher": "A journal publisher data sharing policy",
+    "funder": "A funder data management policy",
+    "institution": "An institutional data policy",
+    "project": "A project-level data policy",
+    "society": "A professional society data policy",
+}
+
+DATABASE_REGISTRY_SUBTYPES = {
+    "repository": "Data repository — stores and provides access to research datasets",
+    "knowledgebase": "Expert-curated annotation resource",
+    "biobank": "Biological sample collection and associated data",
+    "catalogue": "Index or catalogue of other data resources",
+    "ontology": "Formal concept hierarchy (also: controlled vocabulary)",
+}
+
 POLICY_MANDATE_LEVELS = {"required", "suggested", "not covered", "other"}
 POLICY_TYPES = {"journal", "journal_publisher", "funder", "institution", "project", "society"}
 DATA_ACCESS_VALUES = {"open", "partially open", "controlled", "not found"}

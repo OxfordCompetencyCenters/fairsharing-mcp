@@ -6,8 +6,42 @@ from fairsharing_mcp.constants import (
     POLICY_BOOLEAN_FIELDS,
     POLICY_DMP_FIELDS,
     POLICY_MANDATE_FIELDS,
+    RECORD_STATUS_DESCRIPTIONS,
+    RECORD_TYPE_DESCRIPTIONS,
     UNIFIED_GRADE_THRESHOLDS,
 )
+
+
+def build_fairsharing_url(doi: str | None) -> str | None:
+    """Convert a FAIRsharing DOI to its canonical web URL.
+
+    e.g. '10.25504/FAIRsharing.1943d4' → 'https://fairsharing.org/FAIRsharing.1943d4'
+    Returns None if doi is missing or not a FAIRsharing DOI.
+    """
+    if not doi or "FAIRsharing." not in doi:
+        return None
+    suffix = doi.split("FAIRsharing.", 1)[1]
+    return f"https://fairsharing.org/FAIRsharing.{suffix}"
+
+
+def _format_status(status: str | None) -> str:
+    """Format a status value with its human-readable description."""
+    if not status:
+        return "N/A"
+    desc = RECORD_STATUS_DESCRIPTIONS.get(status)
+    if desc:
+        return f"{status} _({desc})_"
+    return status
+
+
+def _format_type(rec_type: str | None) -> str:
+    """Format a record type value with its human-readable description."""
+    if not rec_type:
+        return ""
+    desc = RECORD_TYPE_DESCRIPTIONS.get(rec_type.lower())
+    if desc:
+        return f"{rec_type} _({desc})_"
+    return rec_type
 
 
 def escape_md_table(value: str) -> str:
@@ -31,13 +65,16 @@ def format_record_summary(record: dict) -> str:
     registry = record.get("registry", "")
     rec_type = record.get("type", "")
     if registry or rec_type:
+        type_display = _format_type(rec_type) if rec_type else ""
         lines.append(
-            f"- **Type:** {registry} / {rec_type}" if rec_type else f"- **Type:** {registry}"
+            f"- **Type:** {registry} / {type_display}"
+            if type_display
+            else f"- **Type:** {registry}"
         )
 
     status = record.get("status")
     if status:
-        lines.append(f"- **Status:** {status}")
+        lines.append(f"- **Status:** {_format_status(status)}")
 
     description = record.get("description", "")
     if description:
@@ -67,12 +104,35 @@ def format_record_summary(record: dict) -> str:
                 lines.append(f"  _(and {len(domain_labels) - dom_limit} more)_")
 
     doi = record.get("doi")
-    if doi:
+    url = build_fairsharing_url(doi)
+    if url and doi:
+        suffix = doi.split("FAIRsharing.", 1)[1]
+        lines.append(f"- **FAIRsharing:** [FAIRsharing.{suffix}]({url})")
+    elif doi:
         lines.append(f"- **DOI:** {doi}")
 
     rec_id = record.get("id")
     if rec_id:
         lines.append(f"- **ID:** {rec_id}")
+
+    # FAIR indicator summary for database records (when fields are present)
+    fair_fields = [
+        "dataAccessCondition",
+        "dataCuration",
+        "dataDepositionCondition",
+        "citationToRelatedPublications",
+        "dataContactInformation",
+        "dataVersioning",
+        "dataPreservationPolicy",
+        "resourceSustainability",
+        "usesPersistentIdentifier",
+    ]
+    n_fair = sum(1 for f in fair_fields if record.get(f) is not None)
+    if n_fair > 0:
+        lines.append(
+            f"- **FAIR:** {n_fair}/9 indicators present "
+            f"_(full breakdown: `get_database_quality_profile({rec_id})`)_"
+        )
 
     return "\n".join(lines)
 
@@ -94,11 +154,16 @@ def format_record_detail(record: dict) -> str:
     lines.append("## Basic Information")
     lines.append(f"- **ID:** {record.get('id', 'N/A')}")
     lines.append(f"- **Registry:** {record.get('registry', 'N/A')}")
-    lines.append(f"- **Type:** {record.get('type', 'N/A')}")
-    lines.append(f"- **Status:** {record.get('status', 'N/A')}")
+    lines.append(f"- **Type:** {_format_type(record.get('type')) or 'N/A'}")
+    lines.append(f"- **Status:** {_format_status(record.get('status'))}")
 
     doi = record.get("doi")
-    if doi:
+    url = build_fairsharing_url(doi)
+    if url and doi:
+        suffix = doi.split("FAIRsharing.", 1)[1]
+        lines.append(f"- **FAIRsharing:** [FAIRsharing.{suffix}]({url})")
+        lines.append(f"- **DOI:** {doi}")
+    elif doi:
         lines.append(f"- **DOI:** {doi}")
 
     homepage = record.get("homepage")
@@ -335,11 +400,16 @@ def format_policy_detail(record: dict) -> str:
     lines.append("## Basic Information")
     lines.append(f"- **ID:** {record.get('id', 'N/A')}")
     lines.append(f"- **Registry:** {record.get('registry', 'N/A')}")
-    lines.append(f"- **Type:** {record.get('type', 'N/A')}")
-    lines.append(f"- **Status:** {record.get('status', 'N/A')}")
+    lines.append(f"- **Type:** {_format_type(record.get('type')) or 'N/A'}")
+    lines.append(f"- **Status:** {_format_status(record.get('status'))}")
 
     doi = record.get("doi")
-    if doi:
+    url = build_fairsharing_url(doi)
+    if url and doi:
+        suffix = doi.split("FAIRsharing.", 1)[1]
+        lines.append(f"- **FAIRsharing:** [FAIRsharing.{suffix}]({url})")
+        lines.append(f"- **DOI:** {doi}")
+    elif doi:
         lines.append(f"- **DOI:** {doi}")
     homepage = record.get("homepage")
     if homepage:
@@ -565,11 +635,16 @@ def format_database_quality_profile(record: dict) -> str:
     lines.append("")
     lines.append(f"- **ID:** {record.get('id', 'N/A')}")
     lines.append(f"- **Registry:** {record.get('registry', 'N/A')}")
-    lines.append(f"- **Type:** {record.get('type', 'N/A')}")
-    lines.append(f"- **Status:** {record.get('status', 'N/A')}")
+    lines.append(f"- **Type:** {_format_type(record.get('type')) or 'N/A'}")
+    lines.append(f"- **Status:** {_format_status(record.get('status'))}")
 
     doi = record.get("doi")
-    if doi:
+    url = build_fairsharing_url(doi)
+    if url and doi:
+        suffix = doi.split("FAIRsharing.", 1)[1]
+        lines.append(f"- **FAIRsharing:** [FAIRsharing.{suffix}]({url})")
+        lines.append(f"- **DOI:** {doi}")
+    elif doi:
         lines.append(f"- **DOI:** {doi}")
     homepage = record.get("homepage")
     if homepage:

@@ -31,7 +31,10 @@ logger = logging.getLogger(__name__)
 TOOL_CATALOG: list[tuple[str, str]] = [
     ("fairsharing_search_records", "Search and filter records"),
     ("fairsharing_count_records", "Search and filter records"),
-    ("fairsharing_advanced_filter_records", "Search and filter records"),
+    (
+        "fairsharing_advanced_filter_records",
+        "Advanced search equivalent to FAIRsharing website advanced search, filter records by FAIR indicators boolean flags",
+    ),
     ("fairsharing_count_fair_records", "Search and filter records"),
     ("fairsharing_get_record", "Get one record"),
     ("fairsharing_get_record_types", "Get one record"),
@@ -114,6 +117,10 @@ TOOL_CATALOG: list[tuple[str, str]] = [
     ("fairsharing_filter_records_by_date", "Filter by date"),
     ("fairsharing_get_standard_quality_profile", "Standard quality profile"),
     ("fairsharing_search_by_doi", "Look up record by DOI or FAIRsharing URL"),
+    (
+        "fairsharing_resolve_identifier",
+        "Resolve any identifier (numeric ID, DOI, or FAIRsharing URL) to canonical URL and DOI",
+    ),
     ("fairsharing_check_api_health", "API connectivity, auth, and health check"),
     ("fairsharing_explain_fairsharing", "Reference docs: overview, indicators, workflows, scoring"),
     ("fairsharing_get_unified_quality_score", "Normalized 0-100 quality score for any record type"),
@@ -2177,8 +2184,10 @@ async def explain_fairsharing(
             "forming a knowledge graph. Each record may have subjects, domains, taxonomies,\n"
             "countries, organisations, publications, and (for databases) 9 FAIR quality indicators.\n\n"
             "## Key IDs\n"
-            "- Each record has a numeric ID (e.g., 25) and optionally a DOI (e.g., 10.25504/FAIRsharing.2abjs5)\n"
-            "- Use `fairsharing_search_records` to find records by text/filters, `fairsharing_get_record` by ID, `fairsharing_search_by_doi` by DOI\n\n"
+            "- Each record has a numeric ID (e.g., 25), a DOI (e.g., 10.25504/FAIRsharing.2abjs5), and a canonical URL (e.g., https://fairsharing.org/FAIRsharing.2abjs5)\n"
+            "- IMPORTANT: Never construct URLs from numeric IDs. Always use the DOI-based URL form.\n"
+            "- Use `fairsharing_search_records` to find records by text/filters, `fairsharing_get_record` by ID, `fairsharing_search_by_doi` by DOI\n"
+            "- Use `fairsharing_resolve_identifier` to convert any identifier form (numeric ID, DOI, or URL) to all three forms\n\n"
             "## Getting Started\n"
             "1. `fairsharing_check_api_health()` — verify your API key works\n"
             "2. `fairsharing_get_statistics()` — see platform-wide counts\n"
@@ -2238,9 +2247,18 @@ async def explain_fairsharing(
         "registries": (
             "# FAIRsharing Registries\n\n"
             "## Database\n"
-            "Repositories, knowledgebases, and biobanks that store and serve data.\n"
-            "These are the only records with FAIR quality indicator fields.\n"
-            "Record types: knowledgebase, repository, biobank.\n\n"
+            "The Database registry includes ALL of the following subtypes — it is NOT limited\n"
+            "to 'databases' in the narrow sense. When a user asks about 'databases', clarify\n"
+            "which subtype they mean:\n\n"
+            "| Subtype | Description |\n"
+            "|---------|-------------|\n"
+            "| repository | Data repository — stores and provides access to research datasets |\n"
+            "| knowledgebase | Expert-curated annotation resource |\n"
+            "| biobank | Biological sample collection and associated data |\n"
+            "| catalogue | Index or catalogue of other data resources |\n"
+            "| ontology | Formal concept hierarchy (also: controlled vocabulary) |\n\n"
+            "Use record_type filter to narrow to a specific subtype, e.g. record_type=['repository'].\n"
+            "These are the only records with FAIR quality indicator fields.\n\n"
             "## Standard\n"
             "Data standards including terminologies/ontologies, models/formats,\n"
             "reporting guidelines, and identifier schemas.\n"
