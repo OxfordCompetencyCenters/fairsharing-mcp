@@ -40,7 +40,7 @@ def make_record(
         "registry": registry,
         "type": record_type,
         "status": status,
-        "doi": extra.get("doi", "10.1234/test"),
+        "doi": extra.get("doi", "10.25504/FAIRsharing.test1a"),
         "homepage": extra.get("homepage", "https://example.com"),
         "description": extra.get("description", "A test record for unit testing."),
         "createdAt": extra.get("createdAt", "2023-01-01"),

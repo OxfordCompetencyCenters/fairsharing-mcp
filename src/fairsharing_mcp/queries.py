@@ -267,11 +267,11 @@ query GetRecordAssociations($id: ID!) {
         publications { id title }
         licenceLinks { licence { id name } }
         recordAssociations {
-            linkedRecord { id name abbreviation registry type status }
+            linkedRecord { id name abbreviation registry type status doi }
             recordAssocLabel
         }
         reverseRecordAssociations {
-            fairsharingRecord { id name abbreviation registry type status }
+            fairsharingRecord { id name abbreviation registry type status doi }
             recordAssocLabel
         }
     }
@@ -348,7 +348,7 @@ query MultiTagFilter(
         recommendsDatabase: $recommendsDatabase, recommendsStandard: $recommendsStandard,
         load: $load
     ) {
-        id name abbreviation registry type status createdAt
+        id name abbreviation registry type status doi createdAt
         subjects { label }
         domains { label }
     }
@@ -382,11 +382,11 @@ query GetPolicyDetail($id: ID!) {
         licenceLinks { licence { id name url } relation }
         userDefinedTags { id label }
         recordAssociations {
-            linkedRecord { id name abbreviation registry type status }
+            linkedRecord { id name abbreviation registry type status doi }
             recordAssocLabel
         }
         reverseRecordAssociations {
-            fairsharingRecord { id name abbreviation registry type status }
+            fairsharingRecord { id name abbreviation registry type status doi }
             recordAssocLabel
         }
     }

@@ -11,6 +11,7 @@ from pydantic import Field
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.constants import STANDARD_COMPREHENSIVE_WEIGHTS
+from fairsharing_mcp.formatters import build_fairsharing_url
 from fairsharing_mcp.queries import (
     GET_LATEST_STATS_QUERY,
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
@@ -424,7 +425,11 @@ async def find_standards_for_database(
                 stype = s.get("type", "")
                 sid = s.get("id", "")
                 sstatus = s.get("status", "")
-                entry = f"  - **{sname}**"
+                fs_url = build_fairsharing_url(s.get("doi"))
+                if fs_url:
+                    entry = f"  - **[{sname}]({fs_url})**"
+                else:
+                    entry = f"  - **{sname}**"
                 if sabbrev:
                     entry += f" ({sabbrev})"
                 if stype:
@@ -645,7 +650,11 @@ async def find_databases_for_standard(
                 dtype = d.get("type", "")
                 did = d.get("id", "")
                 dstatus = d.get("status", "")
-                entry = f"  - **{dname}**"
+                fs_url = build_fairsharing_url(d.get("doi"))
+                if fs_url:
+                    entry = f"  - **[{dname}]({fs_url})**"
+                else:
+                    entry = f"  - **{dname}**"
                 if dabbrev:
                     entry += f" ({dabbrev})"
                 if dtype:
@@ -875,7 +884,11 @@ async def analyze_standard_adoption(
         def _format_entries(entries: list, limit: int = 20) -> list[str]:
             result = []
             for e in entries[:limit]:
-                line = f"  - {e['name']}"
+                fs_url = build_fairsharing_url(e.get("doi"))
+                if fs_url:
+                    line = f"  - [{e['name']}]({fs_url})"
+                else:
+                    line = f"  - {e['name']}"
                 if e.get("abbreviation"):
                     line += f" ({e['abbreviation']})"
                 line += f" [ID: {e['id']}]"

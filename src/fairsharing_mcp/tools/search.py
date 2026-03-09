@@ -235,6 +235,7 @@ async def search_records(
                             "type": r.get("type"),
                             "status": r.get("status"),
                             "doi": r.get("doi"),
+                            "fairsharing_url": build_fairsharing_url(r.get("doi")),
                         }
                         for r in records
                     ],
@@ -1011,6 +1012,8 @@ async def advanced_filter_records(
                             "registry": r.get("registry"),
                             "type": r.get("type"),
                             "status": r.get("status"),
+                            "doi": r.get("doi"),
+                            "fairsharing_url": build_fairsharing_url(r.get("doi")),
                             "subjects": [
                                 s.get("label", "") for s in r.get("subjects", []) if s.get("label")
                             ],
@@ -1032,27 +1035,7 @@ async def advanced_filter_records(
         ]
 
         for i, record in enumerate(page_records, start_idx + 1):
-            name = record.get("name", "Unknown")
-            abbrev = record.get("abbreviation", "")
-            rec_registry = record.get("registry", "")
-            rec_type = record.get("type", "")
-            rec_id = record.get("id", "")
-
-            entry = f"### {i}. {name}"
-            if abbrev:
-                entry += f" ({abbrev})"
-            lines.append(entry)
-            lines.append(f"- **Registry:** {rec_registry} | **Type:** {rec_type}")
-
-            subj_labels = [s.get("label", "") for s in record.get("subjects", []) if s.get("label")]
-            if subj_labels:
-                lines.append(f"- **Subjects:** {', '.join(subj_labels[:5])}")
-
-            dom_labels = [d.get("label", "") for d in record.get("domains", []) if d.get("label")]
-            if dom_labels:
-                lines.append(f"- **Domains:** {', '.join(dom_labels[:5])}")
-
-            lines.append(f"- **ID:** {rec_id} | **Status:** {record.get('status', 'N/A')}")
+            lines.append(f"### {i}. " + format_record_summary(record).lstrip("### "))
             lines.append("")
 
         if page < total_pages:

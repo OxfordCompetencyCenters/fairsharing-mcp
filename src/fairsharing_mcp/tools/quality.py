@@ -10,6 +10,7 @@ from fairsharing_mcp import app, config, helpers
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.constants import DATABASE_COMPREHENSIVE_WEIGHTS, DATABASE_FAIR_INDICATOR_FIELDS
 from fairsharing_mcp.formatters import (
+    build_fairsharing_url,
     compute_fair_score_detailed,
     format_database_quality_profile,
     normalize_quality_score,
@@ -246,6 +247,8 @@ async def assess_database_indicators(
             abbrev = record.get("abbreviation", "")
             rec_type = record.get("type", "")
             rec_id = record.get("id", "")
+            rec_doi = record.get("doi")
+            fs_url = build_fairsharing_url(rec_doi)
 
             entry = f"### {i}. {name}"
             if abbrev:
@@ -263,6 +266,9 @@ async def assess_database_indicators(
 
             lines.append(f"- **ID:** {rec_id}")
             lines.append(f"- **Status:** {record.get('status', 'N/A')}")
+            if fs_url and rec_doi:
+                suffix = rec_doi.split("FAIRsharing.", 1)[1]
+                lines.append(f"- **FAIRsharing:** [FAIRsharing.{suffix}]({fs_url})")
             lines.append("")
 
         if page < total_pages:

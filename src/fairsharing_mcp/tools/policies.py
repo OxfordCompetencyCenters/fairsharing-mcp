@@ -14,7 +14,7 @@ from fairsharing_mcp.constants import (
     POLICY_MANDATE_FIELDS,
     POLICY_TYPES,
 )
-from fairsharing_mcp.formatters import format_policy_detail
+from fairsharing_mcp.formatters import build_fairsharing_url, format_policy_detail
 from fairsharing_mcp.queries import (
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
     SEARCH_RECORDS_QUERY,
@@ -1028,7 +1028,11 @@ async def trace_policy_impact(
         if recommended_databases:
             lines.append("### Directly Recommended Databases")
             for db in recommended_databases:
-                entry = f"- {db['name']}"
+                fs_url = build_fairsharing_url(db.get("doi"))
+                if fs_url:
+                    entry = f"- [{db['name']}]({fs_url})"
+                else:
+                    entry = f"- {db['name']}"
                 if db.get("abbreviation"):
                     entry += f" ({db['abbreviation']})"
                 entry += f" [ID: {db['id']}]"
@@ -1355,15 +1359,24 @@ async def find_policy_gaps(
         )
         lines.append("")
 
+        def _record_entry(r: dict, show_type: bool = False) -> str:
+            fs_url = build_fairsharing_url(r.get("doi"))
+            if fs_url:
+                entry = f"- [{r['name']}]({fs_url})"
+            else:
+                entry = f"- {r['name']}"
+            if r.get("abbreviation"):
+                entry += f" ({r['abbreviation']})"
+            if show_type and r.get("type"):
+                entry += f" [{r['type']}]"
+            entry += f" (ID: {r['id']})"
+            return entry
+
         # Uncovered resources
         if uncovered_standards:
             lines.append(f"## Uncovered Standards ({len(uncovered_standards)})")
             for s in uncovered_standards[:30]:
-                entry_line = f"- {s['name']}"
-                if s.get("abbreviation"):
-                    entry_line += f" ({s['abbreviation']})"
-                entry_line += f" [{s['type']}] (ID: {s['id']})"
-                lines.append(entry_line)
+                lines.append(_record_entry(s, show_type=True))
             if len(uncovered_standards) > 30:
                 lines.append(f"_(...and {len(uncovered_standards) - 30} more)_")
             lines.append("")
@@ -1371,11 +1384,7 @@ async def find_policy_gaps(
         if uncovered_databases:
             lines.append(f"## Uncovered Databases ({len(uncovered_databases)})")
             for d in uncovered_databases[:30]:
-                entry_line = f"- {d['name']}"
-                if d.get("abbreviation"):
-                    entry_line += f" ({d['abbreviation']})"
-                entry_line += f" [{d['type']}] (ID: {d['id']})"
-                lines.append(entry_line)
+                lines.append(_record_entry(d, show_type=True))
             if len(uncovered_databases) > 30:
                 lines.append(f"_(...and {len(uncovered_databases) - 30} more)_")
             lines.append("")
@@ -1384,11 +1393,7 @@ async def find_policy_gaps(
         if covered_standards:
             lines.append(f"## Well-Covered Standards ({len(covered_standards)})")
             for s in covered_standards[:20]:
-                entry_line = f"- {s['name']}"
-                if s.get("abbreviation"):
-                    entry_line += f" ({s['abbreviation']})"
-                entry_line += f" (ID: {s['id']})"
-                lines.append(entry_line)
+                lines.append(_record_entry(s))
             if len(covered_standards) > 20:
                 lines.append(f"_(...and {len(covered_standards) - 20} more)_")
             lines.append("")
@@ -1396,11 +1401,7 @@ async def find_policy_gaps(
         if covered_databases:
             lines.append(f"## Well-Covered Databases ({len(covered_databases)})")
             for d in covered_databases[:20]:
-                entry_line = f"- {d['name']}"
-                if d.get("abbreviation"):
-                    entry_line += f" ({d['abbreviation']})"
-                entry_line += f" (ID: {d['id']})"
-                lines.append(entry_line)
+                lines.append(_record_entry(d))
             if len(covered_databases) > 20:
                 lines.append(f"_(...and {len(covered_databases) - 20} more)_")
             lines.append("")

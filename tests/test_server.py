@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from fairsharing_mcp.client import FAIRsharingClient, FAIRsharingError
+from fairsharing_mcp.formatters import build_fairsharing_url
 from fairsharing_mcp.graph_utils import merge_graphs, parse_graph
 from fairsharing_mcp.helpers import matches_date_range
 from fairsharing_mcp.tools.comparison import (
@@ -71,6 +72,7 @@ from fairsharing_mcp.tools.records import (
     get_record_graph,
     get_record_types,
     get_records_batch,
+    resolve_identifier,
 )
 from fairsharing_mcp.tools.search import (
     advanced_filter_records,
@@ -7664,6 +7666,202 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
         entry = client.get_date_for_record(5)
         self.assertEqual(entry["createdAt"], "2020-01-01")
         self.assertEqual(entry["updatedAt"], "2023-06-15")
+
+
+class TestBuildFairsharingUrl(unittest.TestCase):
+    """Unit tests for build_fairsharing_url helper — no API calls needed."""
+
+    def test_valid_doi(self):
+        self.assertEqual(
+            build_fairsharing_url("10.25504/FAIRsharing.abc123"),
+            "https://fairsharing.org/FAIRsharing.abc123",
+        )
+
+    def test_doi_with_long_suffix(self):
+        self.assertEqual(
+            build_fairsharing_url("10.25504/FAIRsharing.9kahy4"),
+            "https://fairsharing.org/FAIRsharing.9kahy4",
+        )
+
+    def test_none_returns_none(self):
+        self.assertIsNone(build_fairsharing_url(None))
+
+    def test_non_fairsharing_doi_returns_none(self):
+        self.assertIsNone(build_fairsharing_url("10.1234/not-fairsharing"))
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(build_fairsharing_url(""))
+
+
+class TestResolveIdentifier(unittest.IsolatedAsyncioTestCase):
+    """Tests for the fairsharing_resolve_identifier tool."""
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_resolve_by_numeric_id(self, mock_get_client):
+        """resolve_identifier accepts a numeric ID and returns URL."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "fairsharingRecord": {
+                "id": 25,
+                "name": "GenBank",
+                "abbreviation": "GenBank",
+                "doi": "10.25504/FAIRsharing.9kahy4",
+                "registry": "Database",
+                "type": "repository",
+                "status": "ready",
+            }
+        }
+
+        result = await resolve_identifier("25")
+        self.assertIn("GenBank", result)
+        self.assertIn("FAIRsharing.9kahy4", result)
+        self.assertIn("https://fairsharing.org/FAIRsharing.9kahy4", result)
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_resolve_by_doi(self, mock_get_client):
+        """resolve_identifier accepts a DOI string and resolves via search."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "searchFairsharingRecords": {
+                "records": [
+                    {
+                        "id": 25,
+                        "name": "GenBank",
+                        "abbreviation": "GenBank",
+                        "doi": "10.25504/FAIRsharing.9kahy4",
+                        "registry": "Database",
+                        "type": "repository",
+                        "status": "ready",
+                    }
+                ],
+                "totalCount": 1,
+                "totalPages": 1,
+            }
+        }
+
+        result = await resolve_identifier("10.25504/FAIRsharing.9kahy4")
+        self.assertIn("GenBank", result)
+        self.assertIn("FAIRsharing.9kahy4", result)
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_resolve_by_fairsharing_url(self, mock_get_client):
+        """resolve_identifier accepts a FAIRsharing URL and resolves via search."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "searchFairsharingRecords": {
+                "records": [
+                    {
+                        "id": 25,
+                        "name": "GenBank",
+                        "abbreviation": "GenBank",
+                        "doi": "10.25504/FAIRsharing.9kahy4",
+                        "registry": "Database",
+                        "type": "repository",
+                        "status": "ready",
+                    }
+                ],
+                "totalCount": 1,
+                "totalPages": 1,
+            }
+        }
+
+        result = await resolve_identifier("https://fairsharing.org/FAIRsharing.9kahy4")
+        self.assertIn("GenBank", result)
+        self.assertIn("FAIRsharing.9kahy4", result)
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_resolve_json_output(self, mock_get_client):
+        """resolve_identifier returns JSON with fairsharing_url field."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "fairsharingRecord": {
+                "id": 25,
+                "name": "GenBank",
+                "abbreviation": "GenBank",
+                "doi": "10.25504/FAIRsharing.9kahy4",
+                "registry": "Database",
+                "type": "repository",
+                "status": "ready",
+            }
+        }
+
+        result = await resolve_identifier("25", output_format="json")
+        data = json.loads(result)
+        self.assertEqual(data["fairsharing_url"], "https://fairsharing.org/FAIRsharing.9kahy4")
+        self.assertEqual(data["doi"], "10.25504/FAIRsharing.9kahy4")
+        self.assertEqual(data["id"], 25)
+
+
+class TestFairsharingUrlInOutputs(unittest.IsolatedAsyncioTestCase):
+    """Tests verifying FAIRsharing URLs appear in standard tool outputs."""
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_search_records_shows_url(self, mock_get_client):
+        """search_records markdown output includes FAIRsharing URL links."""
+        from tests.conftest import make_record
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "searchFairsharingRecords": {
+                "records": [make_record("GenBank", doi="10.25504/FAIRsharing.9kahy4")],
+                "totalCount": 1,
+                "totalPages": 1,
+            }
+        }
+
+        from fairsharing_mcp.tools.search import search_records
+
+        result = await search_records(query="GenBank")
+        self.assertIn("FAIRsharing.9kahy4", result)
+        self.assertIn("https://fairsharing.org/FAIRsharing.9kahy4", result)
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_get_record_shows_url(self, mock_get_client):
+        """get_record markdown output includes FAIRsharing URL link."""
+        from tests.conftest import make_record
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        record = make_record("GenBank", doi="10.25504/FAIRsharing.9kahy4")
+        record["homepage"] = "https://www.ncbi.nlm.nih.gov/genbank/"
+        record["publications"] = []
+        record["licenceLinks"] = []
+        record["countries"] = []
+        record["recordAssociations"] = []
+        mock_client.query.return_value = {"fairsharingRecord": record}
+
+        result = await get_record(25)
+        self.assertIn("FAIRsharing.9kahy4", result)
+        self.assertIn("https://fairsharing.org/FAIRsharing.9kahy4", result)
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_search_records_json_includes_fairsharing_url(self, mock_get_client):
+        """search_records JSON output includes fairsharing_url field."""
+        from tests.conftest import make_record
+
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "searchFairsharingRecords": {
+                "records": [make_record("GenBank", doi="10.25504/FAIRsharing.9kahy4")],
+                "totalCount": 1,
+                "totalPages": 1,
+            }
+        }
+
+        from fairsharing_mcp.tools.search import search_records
+
+        result = await search_records(query="GenBank", output_format="json")
+        data = json.loads(result)
+        self.assertEqual(
+            data["records"][0]["fairsharing_url"],
+            "https://fairsharing.org/FAIRsharing.9kahy4",
+        )
 
 
 if __name__ == "__main__":

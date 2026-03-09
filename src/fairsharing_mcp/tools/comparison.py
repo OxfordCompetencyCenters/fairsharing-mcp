@@ -10,7 +10,11 @@ from pydantic import Field
 
 from fairsharing_mcp import app, helpers
 from fairsharing_mcp.client import FAIRsharingError
-from fairsharing_mcp.formatters import compute_fair_score_detailed, normalize_quality_score
+from fairsharing_mcp.formatters import (
+    build_fairsharing_url,
+    compute_fair_score_detailed,
+    normalize_quality_score,
+)
 from fairsharing_mcp.queries import (
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
     SEARCH_RECORDS_COMPACT_QUERY,
@@ -1746,8 +1750,13 @@ async def assess_dmp_compliance(
             for sid in sorted(universal_gaps):
                 s = policy_standards[sid]
                 name = s["name"]
-                abbrev = s["abbreviation"]
-                entry = f"- **{name}**"
+                abbrev = s.get("abbreviation") or ""
+                fs_url = build_fairsharing_url(s.get("doi"))
+                if fs_url and s.get("doi"):
+                    suffix = s["doi"].split("FAIRsharing.", 1)[1]
+                    entry = f"- **[{name}](https://fairsharing.org/FAIRsharing.{suffix})**"
+                else:
+                    entry = f"- **{name}**"
                 if abbrev:
                     entry += f" ({abbrev})"
                 lines.append(entry)
@@ -1957,8 +1966,13 @@ async def analyze_transitive_impact(
                     else:
                         chain_parts.append(name)
                 chain_str = " ".join(chain_parts)
+                fs_url = build_fairsharing_url(e.get("doi"))
+                if fs_url:
+                    rec_link = f"[{e['name']}]({fs_url})"
+                else:
+                    rec_link = e["name"]
                 lines.append(
-                    f"- **{e['name']}** ({e['registry']}) [ID: {e['id']}] via {e['relationship']}"
+                    f"- **{rec_link}** ({e['registry']}) [ID: {e['id']}] via {e['relationship']}"
                 )
                 if depth > 1:
                     lines.append(f"  - Chain: {chain_str}")
