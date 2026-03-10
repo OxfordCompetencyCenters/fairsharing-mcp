@@ -7,7 +7,6 @@ query AdvancedSearch($where: AdvancedSearchAttributes!, $q: String) {
         subjects { label }
         domains { label }
         objectTypes { label }
-        metadata
     }
 }
 """
