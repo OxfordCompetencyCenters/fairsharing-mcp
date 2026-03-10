@@ -109,3 +109,8 @@ def make_search_result(records, total_count=None, total_pages=None):
             "totalPages": total_pages or 1,
         }
     }
+
+
+def make_advanced_search_result(records):
+    """Wrap records in an advancedSearch response."""
+    return {"advancedSearch": records}

@@ -1,13 +1,14 @@
 """FAIRsharing MCP tools — FAIR quality assessment and database indicators."""
 
 import json
+import logging
 from typing import Annotated
 
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from fairsharing_mcp import app, config, helpers
-from fairsharing_mcp.client import FAIRsharingError
+from fairsharing_mcp.client import FAIRsharingAuthError, FAIRsharingError
 from fairsharing_mcp.constants import DATABASE_COMPREHENSIVE_WEIGHTS, DATABASE_FAIR_INDICATOR_FIELDS
 from fairsharing_mcp.formatters import (
     build_fairsharing_url,
@@ -17,6 +18,7 @@ from fairsharing_mcp.formatters import (
     normalize_quality_score,
 )
 from fairsharing_mcp.queries import (
+    ADVANCED_SEARCH_QUERY,
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
     MULTI_TAG_FILTER_QUERY,
     SEARCH_RECORDS_QUERY,
@@ -112,25 +114,7 @@ async def assess_database_indicators(
     per_page = min(max(1, per_page), 50)
     page = max(1, page)
 
-    # NOTE: FAIR indicator API filter arguments (dataAccessCondition, dataCuration, etc.)
-    # are deprecated — they return 0 results. Filtering is now applied client-side
-    # using values extracted from each record's metadata blob via extract_fair_indicators().
-    variables: dict = {
-        "registry": ["Database"],
-        "status": ["ready"],
-        "load": True,
-    }
-
-    if query:
-        variables["q"] = query
-    if subjects:
-        variables["subjects"] = subjects
-    if domains:
-        variables["domains"] = domains
-    if is_maintained is not None:
-        variables["isMaintained"] = is_maintained
-
-    # Check if any FAIR indicator filter is active (requires metadata in response)
+    # Check if any FAIR indicator filter is active
     has_fair_filter = any(
         [
             data_access,
@@ -145,9 +129,49 @@ async def assess_database_indicators(
     )
 
     try:
+        # Try advancedSearch first — server-side FAIR indicator filtering in one call
+        where = helpers.build_advanced_search_where(
+            registry=["Database"],
+            status=["ready"],
+            subjects=subjects,
+            domains=domains,
+            is_maintained=is_maintained,
+            data_access=data_access,
+            data_curation=data_curation,
+            data_deposition_condition=data_deposition_condition,
+            data_versioning=data_versioning,
+            data_contact_info=data_contact_info,
+            uses_persistent_identifier=uses_persistent_identifier,
+            has_preservation_policy=has_preservation_policy,
+            has_resource_sustainability=has_resource_sustainability,
+        )
+        adv_vars: dict = {"where": where}
+        if query:
+            adv_vars["q"] = query
+        data = await client.query(ADVANCED_SEARCH_QUERY, adv_vars)
+        records = data.get("advancedSearch", [])
+    except FAIRsharingAuthError:
+        raise
+    except FAIRsharingError:
+        logging.getLogger(__name__).warning(
+            "advancedSearch failed, falling back to paginated search"
+        )
+        # Fallback: paginated SEARCH_RECORDS_QUERY + client-side FAIR filtering
+        variables: dict = {
+            "registry": ["Database"],
+            "status": ["ready"],
+            "load": True,
+        }
+        if query:
+            variables["q"] = query
+        if subjects:
+            variables["subjects"] = subjects
+        if domains:
+            variables["domains"] = domains
+        if is_maintained is not None:
+            variables["isMaintained"] = is_maintained
+
         if has_fair_filter:
-            # FAIR indicator filters require metadata, which multiTagFilter doesn't return.
-            # Use paginated SEARCH_RECORDS_QUERY which includes metadata.
             search_vars: dict = {
                 "registry": ["Database"],
                 "status": ["ready"],
@@ -162,7 +186,7 @@ async def assess_database_indicators(
                 search_vars["domains"] = domains
             if is_maintained is not None:
                 search_vars["isMaintained"] = is_maintained
-            all_records = []
+            all_records: list = []
             page_num = 1
             while True:
                 search_vars["page"] = page_num
@@ -173,11 +197,10 @@ async def assess_database_indicators(
                     break
                 page_num += 1
         else:
-            data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
-            # multiTagFilter returns a flat list, not {records, totalCount, totalPages}
-            all_records = data.get("multiTagFilter", [])
+            fdata = await client.query(MULTI_TAG_FILTER_QUERY, variables)
+            all_records = fdata.get("multiTagFilter", [])
 
-        # Apply client-side FAIR indicator filtering using metadata blob extraction
+        # Client-side FAIR indicator filtering
         records = []
         for r in all_records:
             indicators = extract_fair_indicators(r)
@@ -191,7 +214,9 @@ async def assess_database_indicators(
                 continue
             if data_versioning and indicators.get("dataVersioning") != data_versioning:
                 continue
-            if data_contact_info and indicators.get("dataContactInformation") != data_contact_info:
+            if data_contact_info and (
+                indicators.get("dataContactInformation") != data_contact_info
+            ):
                 continue
             if uses_persistent_identifier is not None:
                 upi = indicators.get("usesPersistentIdentifier")
@@ -210,6 +235,7 @@ async def assess_database_indicators(
                     continue
             records.append(r)
 
+    try:
         if not records:
             filter_parts = []
             if query:

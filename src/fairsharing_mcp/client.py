@@ -233,6 +233,13 @@ class FAIRsharingClient:
                 if isinstance(rec, dict):
                     _index_record(rec)
 
+        # advancedSearch -> flat list
+        adv = data.get("advancedSearch")
+        if isinstance(adv, list):
+            for rec in adv:
+                if isinstance(rec, dict):
+                    _index_record(rec)
+
         # fairsharingRecord -> single record
         single = data.get("fairsharingRecord")
         if isinstance(single, dict):

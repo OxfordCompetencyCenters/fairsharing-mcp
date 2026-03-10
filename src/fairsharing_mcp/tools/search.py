@@ -9,14 +9,15 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from fairsharing_mcp import app, config
-from fairsharing_mcp.client import FAIRsharingError
+from fairsharing_mcp.client import FAIRsharingAuthError, FAIRsharingError
 from fairsharing_mcp.formatters import (
     build_fairsharing_url,
     extract_fair_indicators,
     format_record_summary,
 )
-from fairsharing_mcp.helpers import matches_date_range
+from fairsharing_mcp.helpers import build_advanced_search_where, matches_date_range
 from fairsharing_mcp.queries import (
+    ADVANCED_SEARCH_QUERY,
     MULTI_TAG_FILTER_QUERY,
     SEARCH_RECORDS_COMPACT_QUERY,
     SEARCH_RECORDS_QUERY,
@@ -695,9 +696,6 @@ async def count_fair_records(
         variables["subjects"] = subjects
     if domains:
         variables["domains"] = domains
-    # NOTE: usesPersistentIdentifier, dataPreservationPolicy, resourceSustainability,
-    # dataAccessCondition, dataCuration are deprecated API-level filters.
-    # They are now applied client-side after fetching using extract_fair_indicators().
     if recommends_database is not None:
         variables["recommendsDatabase"] = recommends_database
     if recommends_standard is not None:
@@ -716,70 +714,102 @@ async def count_fair_records(
             data_curation,
         ]
     )
-    # objectTypes is a server-side filter on SEARCH_RECORDS_QUERY (not on multiTagFilter),
-    # so force the SEARCH_RECORDS_QUERY path when object_types is specified.
-    needs_search_query = has_fair_filter or bool(object_types)
+    needs_advanced = has_fair_filter or bool(object_types)
 
     try:
-        if needs_search_query:
-            # FAIR indicator filters require metadata; objectTypes requires SEARCH_RECORDS_QUERY.
-            search_vars: dict = {"perPage": 200, "searchAnd": True}
-            if query:
-                search_vars["q"] = query
-            if registry:
-                search_vars["registry"] = registry
-            if record_type:
-                search_vars["recordType"] = record_type
-            if subjects:
-                search_vars["subjects"] = subjects
-            if domains:
-                search_vars["domains"] = domains
-            if is_maintained is not None:
-                search_vars["isMaintained"] = is_maintained
-            if is_recommended is not None:
-                search_vars["isRecommended"] = is_recommended
-            if object_types:
-                search_vars["objectTypes"] = object_types
-            records = []
-            page = 1
-            while True:
-                search_vars["page"] = page
-                pdata = await client.query(SEARCH_RECORDS_QUERY, search_vars)
-                presult = pdata.get("searchFairsharingRecords", {})
-                records.extend(presult.get("records", []))
-                if page >= presult.get("totalPages", 1):
-                    break
-                page += 1
+        if needs_advanced:
+            # Try advancedSearch first — server-side FAIR + objectTypes filtering
+            try:
+                where = build_advanced_search_where(
+                    registry=registry,
+                    record_type=record_type,
+                    subjects=subjects,
+                    domains=domains,
+                    object_types=object_types,
+                    is_maintained=is_maintained,
+                    is_recommended=is_recommended,
+                    recommends_database=recommends_database,
+                    recommends_standard=recommends_standard,
+                    data_access=data_access,
+                    data_curation=data_curation,
+                    uses_persistent_identifier=uses_persistent_identifier,
+                    has_preservation_policy=has_preservation_policy,
+                    has_resource_sustainability=has_resource_sustainability,
+                )
+                adv_vars: dict = {"where": where}
+                if query:
+                    adv_vars["q"] = query
+                adv_data = await client.query(ADVANCED_SEARCH_QUERY, adv_vars)
+                records = adv_data.get("advancedSearch", [])
+            except FAIRsharingAuthError:
+                raise
+            except FAIRsharingError:
+                logger.warning("advancedSearch failed, falling back to paginated search")
+                # Fallback: paginated SEARCH_RECORDS_QUERY + client-side filtering
+                search_vars: dict = {"perPage": 200, "searchAnd": True}
+                if query:
+                    search_vars["q"] = query
+                if registry:
+                    search_vars["registry"] = registry
+                if record_type:
+                    search_vars["recordType"] = record_type
+                if subjects:
+                    search_vars["subjects"] = subjects
+                if domains:
+                    search_vars["domains"] = domains
+                if is_maintained is not None:
+                    search_vars["isMaintained"] = is_maintained
+                if is_recommended is not None:
+                    search_vars["isRecommended"] = is_recommended
+                if object_types:
+                    search_vars["objectTypes"] = object_types
+                records = []
+                page = 1
+                while True:
+                    search_vars["page"] = page
+                    pdata = await client.query(SEARCH_RECORDS_QUERY, search_vars)
+                    presult = pdata.get("searchFairsharingRecords", {})
+                    records.extend(presult.get("records", []))
+                    if page >= presult.get("totalPages", 1):
+                        break
+                    page += 1
+                # Client-side FAIR filter (fallback only)
+                if has_fair_filter:
+                    filtered = []
+                    for r in records:
+                        indicators = extract_fair_indicators(r)
+                        if data_access and indicators.get("dataAccessCondition") != data_access:
+                            continue
+                        if data_curation and indicators.get("dataCuration") != data_curation:
+                            continue
+                        if uses_persistent_identifier is not None:
+                            upi = indicators.get("usesPersistentIdentifier")
+                            upi_bool = (
+                                upi
+                                if isinstance(upi, bool)
+                                else (upi == "yes" if upi else False)
+                            )
+                            if upi_bool != uses_persistent_identifier:
+                                continue
+                        if has_preservation_policy is not None:
+                            pp = indicators.get("dataPreservationPolicy")
+                            pp_bool = (
+                                pp if isinstance(pp, bool) else (pp == "yes" if pp else False)
+                            )
+                            if pp_bool != has_preservation_policy:
+                                continue
+                        if has_resource_sustainability is not None:
+                            rs = indicators.get("resourceSustainability")
+                            rs_bool = (
+                                rs if isinstance(rs, bool) else (rs == "yes" if rs else False)
+                            )
+                            if rs_bool != has_resource_sustainability:
+                                continue
+                        filtered.append(r)
+                    records = filtered
         else:
             data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
             records = data.get("multiTagFilter", [])
-
-        # Apply client-side FAIR indicator filter using metadata blob extraction
-        if has_fair_filter:
-            filtered = []
-            for r in records:
-                indicators = extract_fair_indicators(r)
-                if data_access and indicators.get("dataAccessCondition") != data_access:
-                    continue
-                if data_curation and indicators.get("dataCuration") != data_curation:
-                    continue
-                if uses_persistent_identifier is not None:
-                    upi = indicators.get("usesPersistentIdentifier")
-                    upi_bool = upi if isinstance(upi, bool) else (upi == "yes" if upi else False)
-                    if upi_bool != uses_persistent_identifier:
-                        continue
-                if has_preservation_policy is not None:
-                    pp = indicators.get("dataPreservationPolicy")
-                    pp_bool = pp if isinstance(pp, bool) else (pp == "yes" if pp else False)
-                    if pp_bool != has_preservation_policy:
-                        continue
-                if has_resource_sustainability is not None:
-                    rs = indicators.get("resourceSustainability")
-                    rs_bool = rs if isinstance(rs, bool) else (rs == "yes" if rs else False)
-                    if rs_bool != has_resource_sustainability:
-                        continue
-                filtered.append(r)
-            records = filtered
 
         # Apply client-side date filter
         if has_date_filter:
@@ -1040,17 +1070,12 @@ async def advanced_filter_records(
         variables["hasPublication"] = has_publication
     if is_implemented is not None:
         variables["isImplemented"] = is_implemented
-    # NOTE: usesPersistentIdentifier, dataPreservationPolicy, resourceSustainability,
-    # dataAccessCondition, dataCuration, dataDepositionCondition,
-    # citationToRelatedPublications, dataContactInformation, dataVersioning
-    # are deprecated API-level filters — they return 0 results.
-    # These are now applied client-side after fetching using extract_fair_indicators().
     if recommends_database is not None:
         variables["recommendsDatabase"] = recommends_database
     if recommends_standard is not None:
         variables["recommendsStandard"] = recommends_standard
 
-    # Determine if FAIR indicator filters are active (require metadata in response)
+    # Determine if FAIR indicator or objectTypes filters are active
     has_fair_filter = any(
         [
             data_access,
@@ -1068,96 +1093,135 @@ async def advanced_filter_records(
 
     try:
         if has_fair_filter:
-            # FAIR indicator filters require metadata, which multiTagFilter doesn't return.
-            # Use paginated SEARCH_RECORDS_QUERY which includes metadata.
-            search_vars: dict = {"perPage": 200, "searchAnd": True}
-            if query:
-                search_vars["q"] = query
-            if registry:
-                search_vars["registry"] = registry
-            if record_type:
-                search_vars["recordType"] = record_type
-            if status:
-                search_vars["status"] = status
-            if subjects:
-                search_vars["subjects"] = subjects
-            if domains:
-                search_vars["domains"] = domains
-            if taxonomies:
-                search_vars["taxonomies"] = taxonomies
-            if is_recommended is not None:
-                search_vars["isRecommended"] = is_recommended
-            if is_approved is not None:
-                search_vars["isApproved"] = is_approved
-            if is_maintained is not None:
-                search_vars["isMaintained"] = is_maintained
-            if has_publication is not None:
-                search_vars["hasPublication"] = has_publication
-            if is_implemented is not None:
-                search_vars["isImplemented"] = is_implemented
-            if object_types:
-                search_vars["objectTypes"] = object_types
-            all_records = []
-            page_num = 1
-            while True:
-                search_vars["page"] = page_num
-                pdata = await client.query(SEARCH_RECORDS_QUERY, search_vars)
-                presult = pdata.get("searchFairsharingRecords", {})
-                all_records.extend(presult.get("records", []))
-                if page_num >= presult.get("totalPages", 1):
-                    break
-                page_num += 1
+            # Try advancedSearch first — server-side FAIR + objectTypes filtering
+            try:
+                where = build_advanced_search_where(
+                    registry=registry,
+                    record_type=record_type,
+                    status=status,
+                    subjects=subjects,
+                    domains=domains,
+                    taxonomies=taxonomies,
+                    object_types=object_types,
+                    is_recommended=is_recommended,
+                    is_maintained=is_maintained,
+                    is_implemented=is_implemented,
+                    has_publication=has_publication,
+                    recommends_database=recommends_database,
+                    recommends_standard=recommends_standard,
+                    data_access=data_access,
+                    data_curation=data_curation,
+                    data_deposition_condition=data_deposition_condition,
+                    citation_to_publications=citation_to_publications,
+                    data_contact_info=data_contact_info,
+                    data_versioning=data_versioning,
+                    uses_persistent_identifier=uses_persistent_identifier,
+                    has_preservation_policy=has_preservation_policy,
+                    has_resource_sustainability=has_resource_sustainability,
+                )
+                adv_vars: dict = {"where": where}
+                if query:
+                    adv_vars["q"] = query
+                adv_data = await client.query(ADVANCED_SEARCH_QUERY, adv_vars)
+                records = adv_data.get("advancedSearch", [])
+            except FAIRsharingAuthError:
+                raise
+            except FAIRsharingError:
+                logger.warning("advancedSearch failed, falling back to paginated search")
+                # Fallback: paginated SEARCH_RECORDS_QUERY + client-side FAIR filtering
+                search_vars: dict = {"perPage": 200, "searchAnd": True}
+                if query:
+                    search_vars["q"] = query
+                if registry:
+                    search_vars["registry"] = registry
+                if record_type:
+                    search_vars["recordType"] = record_type
+                if status:
+                    search_vars["status"] = status
+                if subjects:
+                    search_vars["subjects"] = subjects
+                if domains:
+                    search_vars["domains"] = domains
+                if taxonomies:
+                    search_vars["taxonomies"] = taxonomies
+                if is_recommended is not None:
+                    search_vars["isRecommended"] = is_recommended
+                if is_approved is not None:
+                    search_vars["isApproved"] = is_approved
+                if is_maintained is not None:
+                    search_vars["isMaintained"] = is_maintained
+                if has_publication is not None:
+                    search_vars["hasPublication"] = has_publication
+                if is_implemented is not None:
+                    search_vars["isImplemented"] = is_implemented
+                if object_types:
+                    search_vars["objectTypes"] = object_types
+                all_records: list = []
+                page_num = 1
+                while True:
+                    search_vars["page"] = page_num
+                    pdata = await client.query(SEARCH_RECORDS_QUERY, search_vars)
+                    presult = pdata.get("searchFairsharingRecords", {})
+                    all_records.extend(presult.get("records", []))
+                    if page_num >= presult.get("totalPages", 1):
+                        break
+                    page_num += 1
+                # Client-side FAIR filtering (fallback only)
+                records = []
+                for r in all_records:
+                    indicators = extract_fair_indicators(r)
+                    if data_access and indicators.get("dataAccessCondition") != data_access:
+                        continue
+                    if data_curation and indicators.get("dataCuration") != data_curation:
+                        continue
+                    if data_deposition_condition and (
+                        indicators.get("dataDepositionCondition") != data_deposition_condition
+                    ):
+                        continue
+                    if citation_to_publications and (
+                        indicators.get("citationToRelatedPublications")
+                        != citation_to_publications
+                    ):
+                        continue
+                    if data_contact_info and (
+                        indicators.get("dataContactInformation") != data_contact_info
+                    ):
+                        continue
+                    if data_versioning and indicators.get("dataVersioning") != data_versioning:
+                        continue
+                    if uses_persistent_identifier is not None:
+                        upi = indicators.get("usesPersistentIdentifier")
+                        upi_bool = (
+                            upi if isinstance(upi, bool) else (upi == "yes" if upi else False)
+                        )
+                        if upi_bool != uses_persistent_identifier:
+                            continue
+                    if has_preservation_policy is not None:
+                        pp = indicators.get("dataPreservationPolicy")
+                        pp_bool = (
+                            pp if isinstance(pp, bool) else (pp == "yes" if pp else False)
+                        )
+                        if pp_bool != has_preservation_policy:
+                            continue
+                    if has_resource_sustainability is not None:
+                        rs = indicators.get("resourceSustainability")
+                        rs_bool = (
+                            rs if isinstance(rs, bool) else (rs == "yes" if rs else False)
+                        )
+                        if rs_bool != has_resource_sustainability:
+                            continue
+                    if object_types:
+                        rec_obj_types = [
+                            ot.get("label", "")
+                            for ot in r.get("objectTypes", [])
+                            if ot.get("label")
+                        ]
+                        if not any(ot in rec_obj_types for ot in object_types):
+                            continue
+                    records.append(r)
         else:
             data = await client.query(MULTI_TAG_FILTER_QUERY, variables)
-            all_records = data.get("multiTagFilter", [])
-
-        # Apply client-side FAIR indicator filtering using metadata blob extraction
-        if has_fair_filter:
-            records = []
-            for r in all_records:
-                indicators = extract_fair_indicators(r)
-                if data_access and indicators.get("dataAccessCondition") != data_access:
-                    continue
-                if data_curation and indicators.get("dataCuration") != data_curation:
-                    continue
-                if data_deposition_condition and (
-                    indicators.get("dataDepositionCondition") != data_deposition_condition
-                ):
-                    continue
-                if citation_to_publications and (
-                    indicators.get("citationToRelatedPublications") != citation_to_publications
-                ):
-                    continue
-                if data_contact_info and (
-                    indicators.get("dataContactInformation") != data_contact_info
-                ):
-                    continue
-                if data_versioning and indicators.get("dataVersioning") != data_versioning:
-                    continue
-                if uses_persistent_identifier is not None:
-                    upi = indicators.get("usesPersistentIdentifier")
-                    upi_bool = upi if isinstance(upi, bool) else (upi == "yes" if upi else False)
-                    if upi_bool != uses_persistent_identifier:
-                        continue
-                if has_preservation_policy is not None:
-                    pp = indicators.get("dataPreservationPolicy")
-                    pp_bool = pp if isinstance(pp, bool) else (pp == "yes" if pp else False)
-                    if pp_bool != has_preservation_policy:
-                        continue
-                if has_resource_sustainability is not None:
-                    rs = indicators.get("resourceSustainability")
-                    rs_bool = rs if isinstance(rs, bool) else (rs == "yes" if rs else False)
-                    if rs_bool != has_resource_sustainability:
-                        continue
-                if object_types:
-                    rec_obj_types = [
-                        ot.get("label", "") for ot in r.get("objectTypes", []) if ot.get("label")
-                    ]
-                    if not any(ot in rec_obj_types for ot in object_types):
-                        continue
-                records.append(r)
-        else:
-            records = all_records
+            records = data.get("multiTagFilter", [])
 
         if not records:
             # Build informative zero-result message with filter context

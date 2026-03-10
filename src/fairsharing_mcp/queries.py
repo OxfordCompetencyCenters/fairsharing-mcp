@@ -1,5 +1,17 @@
 """FAIRsharing MCP Server - GraphQL query constants."""
 
+ADVANCED_SEARCH_QUERY = """
+query AdvancedSearch($where: AdvancedSearchAttributes!, $q: String) {
+    advancedSearch(where: $where, q: $q) {
+        id name abbreviation registry type status doi createdAt
+        subjects { label }
+        domains { label }
+        objectTypes { label }
+        metadata
+    }
+}
+"""
+
 SEARCH_RECORDS_QUERY = """
 query SearchRecords(
     $q: String, $searchAnd: Boolean,

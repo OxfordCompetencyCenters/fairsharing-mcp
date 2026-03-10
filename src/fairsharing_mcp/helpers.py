@@ -16,6 +16,91 @@ from fairsharing_mcp.queries import (
 logger = logging.getLogger(__name__)
 
 
+def build_advanced_search_where(
+    *,
+    registry: list[str] | None = None,
+    record_type: list[str] | None = None,
+    status: list[str] | None = None,
+    subjects: list[str] | None = None,
+    domains: list[str] | None = None,
+    taxonomies: list[str] | None = None,
+    countries: list[str] | None = None,
+    organisations: list[str] | None = None,
+    object_types: list[str] | None = None,
+    # FAIR list filters (single string → wrapped in list for the API)
+    data_access: str | None = None,
+    data_curation: str | None = None,
+    data_deposition_condition: str | None = None,
+    citation_to_publications: str | None = None,
+    data_contact_info: str | None = None,
+    data_versioning: str | None = None,
+    # FAIR boolean filters
+    uses_persistent_identifier: bool | None = None,
+    has_preservation_policy: bool | None = None,
+    has_resource_sustainability: bool | None = None,
+    # Standard boolean filters
+    is_recommended: bool | None = None,
+    is_maintained: bool | None = None,
+    is_implemented: bool | None = None,
+    has_publication: bool | None = None,
+    recommends_database: bool | None = None,
+    recommends_standard: bool | None = None,
+) -> dict:
+    """Build the ``where`` clause for the advancedSearch GraphQL endpoint.
+
+    Returns a dict suitable for passing as the ``$where`` variable to
+    ``ADVANCED_SEARCH_QUERY``.  Only non-None parameters are included.
+    """
+    fields: dict = {"operator": "_and"}
+
+    # List-valued filters (pass directly)
+    _list_map: dict[str, list[str] | None] = {
+        "registry": registry,
+        "type": record_type,
+        "status": status,
+        "subjects": subjects,
+        "domains": domains,
+        "taxonomies": taxonomies,
+        "countries": countries,
+        "organisations": organisations,
+        "objectTypes": object_types,
+    }
+    for key, val in _list_map.items():
+        if val:
+            fields[key] = val
+
+    # FAIR list filters (single string → list)
+    _fair_list_map: dict[str, str | None] = {
+        "dataAccessCondition": data_access,
+        "dataCuration": data_curation,
+        "dataDepositionCondition": data_deposition_condition,
+        "citationToRelatedPublications": citation_to_publications,
+        "dataContactInformation": data_contact_info,
+        "dataVersioning": data_versioning,
+    }
+    for key, val in _fair_list_map.items():
+        if val:
+            fields[key] = [val]
+
+    # Boolean filters
+    _bool_map: dict[str, bool | None] = {
+        "usesPersistentIdentifier": uses_persistent_identifier,
+        "dataPreservationPolicy": has_preservation_policy,
+        "resourceSustainability": has_resource_sustainability,
+        "isRecommended": is_recommended,
+        "isMaintained": is_maintained,
+        "isImplemented": is_implemented,
+        "hasPublication": has_publication,
+        "recommendsDatabase": recommends_database,
+        "recommendsStandard": recommends_standard,
+    }
+    for key, val in _bool_map.items():
+        if val is not None:
+            fields[key] = val
+
+    return {"operator": "_and", "fields": [fields]}
+
+
 def extract_policy_mandates(record: dict) -> tuple[dict, bool]:
     """Extract policy mandate fields from the metadata JSON blob into flat keys.
 

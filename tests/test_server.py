@@ -2,10 +2,10 @@ import json
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from fairsharing_mcp.client import FAIRsharingClient, FAIRsharingError
+from fairsharing_mcp.client import FAIRsharingAuthError, FAIRsharingClient, FAIRsharingError
 from fairsharing_mcp.formatters import build_fairsharing_url
 from fairsharing_mcp.graph_utils import merge_graphs, parse_graph
-from fairsharing_mcp.helpers import matches_date_range
+from fairsharing_mcp.helpers import build_advanced_search_where, matches_date_range
 from fairsharing_mcp.tools.comparison import (
     analyze_deprecation_impact,
     analyze_transitive_impact,
@@ -4495,12 +4495,12 @@ class TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase):
 
     @patch("fairsharing_mcp.app.get_client")
     async def test_assess_database_indicators_with_results(self, mock_get_client):
-        """assess_database_indicators returns formatted databases from multiTagFilter."""
+        """assess_database_indicators returns formatted databases via advancedSearch."""
         mock_client = AsyncMock()
         mock_get_client.return_value = mock_client
 
         mock_client.query.return_value = {
-            "multiTagFilter": [
+            "advancedSearch": [
                 {
                     "name": "UniProt",
                     "abbreviation": "UniProt",
@@ -7876,6 +7876,302 @@ class TestFairsharingUrlInOutputs(unittest.IsolatedAsyncioTestCase):
             data["records"][0]["fairsharing_url"],
             "https://fairsharing.org/FAIRsharing.9kahy4",
         )
+
+
+    # ── advancedSearch integration tests ────────────────────────────────
+
+    # -- build_advanced_search_where unit tests --
+
+    def test_build_advanced_search_where_minimal(self):
+        """build_advanced_search_where with no filters returns bare structure."""
+        result = build_advanced_search_where()
+        self.assertEqual(result["operator"], "_and")
+        self.assertEqual(len(result["fields"]), 1)
+        inner = result["fields"][0]
+        self.assertEqual(inner["operator"], "_and")
+        # Only operator key, no filter fields
+        self.assertEqual(set(inner.keys()), {"operator"})
+
+    def test_build_advanced_search_where_list_filters(self):
+        """build_advanced_search_where maps list filters correctly."""
+        result = build_advanced_search_where(
+            registry=["Database"],
+            record_type=["repository"],
+            subjects=["Genomics"],
+            object_types=["dataset"],
+        )
+        inner = result["fields"][0]
+        self.assertEqual(inner["registry"], ["Database"])
+        self.assertEqual(inner["type"], ["repository"])
+        self.assertEqual(inner["subjects"], ["Genomics"])
+        self.assertEqual(inner["objectTypes"], ["dataset"])
+
+    def test_build_advanced_search_where_fair_string_filters(self):
+        """build_advanced_search_where wraps FAIR string values in lists."""
+        result = build_advanced_search_where(
+            data_access="open",
+            data_curation="manual",
+        )
+        inner = result["fields"][0]
+        self.assertEqual(inner["dataAccessCondition"], ["open"])
+        self.assertEqual(inner["dataCuration"], ["manual"])
+
+    def test_build_advanced_search_where_boolean_filters(self):
+        """build_advanced_search_where passes booleans directly."""
+        result = build_advanced_search_where(
+            uses_persistent_identifier=True,
+            has_preservation_policy=False,
+            is_recommended=True,
+        )
+        inner = result["fields"][0]
+        self.assertTrue(inner["usesPersistentIdentifier"])
+        self.assertFalse(inner["dataPreservationPolicy"])
+        self.assertTrue(inner["isRecommended"])
+
+    def test_build_advanced_search_where_omits_none(self):
+        """build_advanced_search_where omits None-valued filters."""
+        result = build_advanced_search_where(
+            registry=["Database"],
+            data_access=None,
+            uses_persistent_identifier=None,
+        )
+        inner = result["fields"][0]
+        self.assertIn("registry", inner)
+        self.assertNotIn("dataAccessCondition", inner)
+        self.assertNotIn("usesPersistentIdentifier", inner)
+
+    # -- count_fair_records advancedSearch happy path --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_count_fair_records_advanced_search(self, mock_get_client):
+        """count_fair_records uses advancedSearch when FAIR filters are active."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.return_value = {
+            "advancedSearch": [
+                {"id": "1", "registry": "Database", "createdAt": "2023-01-01"},
+                {"id": "2", "registry": "Database", "createdAt": "2023-06-01"},
+            ]
+        }
+
+        result = await count_fair_records(
+            registry=["Database"],
+            data_access="open",
+        )
+        self.assertIn("2", result)
+        # Should call advancedSearch, not multiTagFilter
+        call_args = mock_client.query.call_args
+        query_str = call_args[0][0]
+        self.assertIn("advancedSearch", query_str)
+
+    # -- count_fair_records advancedSearch fallback --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_count_fair_records_advanced_search_fallback(self, mock_get_client):
+        """count_fair_records falls back to paginated search when advancedSearch fails."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.side_effect = [
+            FAIRsharingError("advancedSearch unavailable"),  # advancedSearch fails
+            {  # fallback paginated search
+                "searchFairsharingRecords": {
+                    "records": [
+                        {
+                            "id": "1",
+                            "registry": "Database",
+                            "createdAt": "2023-01-01",
+                            "metadata": {"data_access_condition": {"type": "open"}},
+                        },
+                    ],
+                    "totalCount": 1,
+                    "totalPages": 1,
+                }
+            },
+        ]
+
+        result = await count_fair_records(
+            registry=["Database"],
+            data_access="open",
+        )
+        # Should still return a result (via fallback)
+        self.assertIn("1", result)
+        self.assertEqual(mock_client.query.call_count, 2)
+
+    # -- count_fair_records auth error propagation --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_count_fair_records_auth_error_returned(self, mock_get_client):
+        """count_fair_records returns error message for auth errors (outer handler)."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.side_effect = FAIRsharingAuthError("Invalid API key")
+
+        result = await count_fair_records(
+            registry=["Database"],
+            data_access="open",
+        )
+        self.assertIn("Error", result)
+        self.assertIn("Invalid API key", result)
+
+    # -- advanced_filter_records advancedSearch happy path --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_advanced_filter_records_advanced_search(self, mock_get_client):
+        """advanced_filter_records uses advancedSearch when FAIR filters are active."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.return_value = {
+            "advancedSearch": [
+                {
+                    "id": "10",
+                    "name": "Open DB",
+                    "abbreviation": "ODB",
+                    "registry": "Database",
+                    "type": "repository",
+                    "status": "ready",
+                    "subjects": [{"label": "Genomics"}],
+                    "domains": [],
+                    "objectTypes": [{"label": "dataset"}],
+                },
+            ]
+        }
+
+        result = await advanced_filter_records(
+            registry=["Database"],
+            data_access="open",
+            object_types=["dataset"],
+        )
+        self.assertIn("Open DB", result)
+        call_args = mock_client.query.call_args
+        query_str = call_args[0][0]
+        self.assertIn("advancedSearch", query_str)
+
+    # -- advanced_filter_records advancedSearch fallback --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_advanced_filter_records_fallback(self, mock_get_client):
+        """advanced_filter_records falls back when advancedSearch fails."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.side_effect = [
+            FAIRsharingError("advancedSearch unavailable"),  # advancedSearch fails
+            {  # fallback paginated search
+                "searchFairsharingRecords": {
+                    "records": [
+                        {
+                            "id": "10",
+                            "name": "Open DB",
+                            "abbreviation": "ODB",
+                            "registry": "Database",
+                            "type": "repository",
+                            "status": "ready",
+                            "subjects": [{"label": "Genomics"}],
+                            "domains": [],
+                            "objectTypes": [{"label": "dataset"}],
+                            "metadata": {"data_access_condition": {"type": "open"}},
+                        },
+                    ],
+                    "totalCount": 1,
+                    "totalPages": 1,
+                }
+            },
+        ]
+
+        result = await advanced_filter_records(
+            registry=["Database"],
+            data_access="open",
+            object_types=["dataset"],
+        )
+        self.assertIn("Open DB", result)
+        self.assertEqual(mock_client.query.call_count, 2)
+
+    # -- assess_database_indicators advancedSearch fallback --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_assess_database_indicators_fallback(self, mock_get_client):
+        """assess_database_indicators falls back when advancedSearch fails."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.side_effect = [
+            FAIRsharingError("advancedSearch unavailable"),  # advancedSearch fails
+            {  # fallback multiTagFilter
+                "multiTagFilter": [
+                    {
+                        "id": "1",
+                        "name": "FallbackDB",
+                        "abbreviation": "FDB",
+                        "type": "repository",
+                        "subjects": [{"label": "Genomics"}],
+                        "domains": [],
+                        "status": "ready",
+                    },
+                ]
+            },
+        ]
+
+        result = await assess_database_indicators(subjects=["Genomics"])
+        self.assertIn("FallbackDB", result)
+        self.assertEqual(mock_client.query.call_count, 2)
+
+    # -- assess_database_indicators auth error propagation --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_assess_database_indicators_auth_error(self, mock_get_client):
+        """assess_database_indicators re-raises FAIRsharingAuthError (not caught by fallback)."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.side_effect = FAIRsharingAuthError("Invalid API key")
+
+        with self.assertRaises(FAIRsharingAuthError):
+            await assess_database_indicators(data_access="open")
+
+    # -- client date indexing for advancedSearch --
+
+    def test_client_date_index_advanced_search(self):
+        """_index_dates_from_response indexes advancedSearch results."""
+        client = FAIRsharingClient(api_key="test-key")
+        client._index_dates_from_response(
+            {
+                "advancedSearch": [
+                    {"id": "42", "createdAt": "2023-01-15", "updatedAt": "2024-03-01"},
+                    {"id": "99", "createdAt": "2020-06-01", "updatedAt": None},
+                ]
+            }
+        )
+        self.assertEqual(client.get_date_index_size(), 2)
+        entry = client.get_date_for_record(42)
+        self.assertEqual(entry["createdAt"], "2023-01-15")
+        self.assertEqual(entry["updatedAt"], "2024-03-01")
+
+    # -- count_fair_records with objectTypes via advancedSearch --
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_count_fair_records_object_types_advanced_search(self, mock_get_client):
+        """count_fair_records routes to advancedSearch when objectTypes specified."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+
+        mock_client.query.return_value = {
+            "advancedSearch": [
+                {"id": "1", "registry": "Database", "createdAt": "2023-01-01"},
+            ]
+        }
+
+        result = await count_fair_records(
+            registry=["Database"],
+            object_types=["dataset"],
+        )
+        self.assertIn("1", result)
+        call_args = mock_client.query.call_args
+        query_str = call_args[0][0]
+        self.assertIn("advancedSearch", query_str)
 
 
 if __name__ == "__main__":
