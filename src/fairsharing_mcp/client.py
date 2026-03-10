@@ -266,6 +266,8 @@ class FAIRsharingClient:
         graphql_query: str,
         variables: dict[str, Any] | None = None,
         cache: bool = False,
+        timeout: float | None = None,
+        max_retries: int | None = None,
     ) -> dict[str, Any]:
         """Execute a GraphQL query.
 
@@ -274,6 +276,8 @@ class FAIRsharingClient:
             variables: Optional query variables
             cache: If True, cache the result for cache_ttl seconds.
                    Useful for reference data (subjects, domains, registries, etc.)
+            timeout: Per-request timeout override (seconds). Defaults to self.timeout.
+            max_retries: Override max retry attempts. Defaults to self.max_retries.
 
         Returns:
             The data portion of the GraphQL response
@@ -305,14 +309,17 @@ class FAIRsharingClient:
 
         logger.debug(f"Executing GraphQL query with variables: {variables}")
 
+        effective_retries = max_retries if max_retries is not None else self.max_retries
+        effective_timeout = timeout if timeout is not None else self.timeout
         last_error: Exception | None = None
 
-        for attempt in range(self.max_retries):
+        for attempt in range(effective_retries):
             try:
                 http_client = self._get_http_client()
                 response = await http_client.post(
                     self.base_url,
                     json=payload,
+                    timeout=effective_timeout,
                 )
 
                 # Handle HTTP errors
@@ -321,7 +328,7 @@ class FAIRsharingClient:
                         "Invalid API key. Please check your FAIRSHARING_API_KEY."
                     )
                 elif response.status_code in (402, 429):
-                    if attempt < self.max_retries - 1:
+                    if attempt < effective_retries - 1:
                         wait_time = 2 ** (attempt + 1)
                         retry_after = response.headers.get("Retry-After")
                         if retry_after is not None:
@@ -338,7 +345,7 @@ class FAIRsharingClient:
                         continue
                     raise FAIRsharingRateLimitError("Rate limit exceeded. Please try again later.")
                 elif response.status_code >= 500:
-                    if attempt < self.max_retries - 1:
+                    if attempt < effective_retries - 1:
                         wait_time = 2**attempt
                         jitter = random.uniform(0.8, 1.2)
                         wait_time = max(0.5, wait_time * jitter)
@@ -376,18 +383,18 @@ class FAIRsharingClient:
 
             except httpx.TimeoutException as e:
                 last_error = e
-                if attempt < self.max_retries - 1:
+                if attempt < effective_retries - 1:
                     wait_time = 2**attempt
                     jitter = random.uniform(0.8, 1.2)
                     wait_time = max(0.5, wait_time * jitter)
                     logger.warning(f"Request timeout, retrying in {wait_time:.1f}s")
                     await asyncio.sleep(wait_time)
                     continue
-                raise FAIRsharingError(f"Request timeout after {self.max_retries} attempts") from e
+                raise FAIRsharingError(f"Request timeout after {effective_retries} attempts") from e
 
             except httpx.RequestError as e:
                 last_error = e
-                if attempt < self.max_retries - 1:
+                if attempt < effective_retries - 1:
                     wait_time = 2**attempt
                     jitter = random.uniform(0.8, 1.2)
                     wait_time = max(0.5, wait_time * jitter)
@@ -397,4 +404,4 @@ class FAIRsharingClient:
                 raise FAIRsharingError(f"Network error: {e}") from e
 
         # Should not reach here, but just in case
-        raise FAIRsharingError(f"Query failed after {self.max_retries} attempts") from last_error
+        raise FAIRsharingError(f"Query failed after {effective_retries} attempts") from last_error

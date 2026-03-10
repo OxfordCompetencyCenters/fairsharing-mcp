@@ -148,7 +148,7 @@ async def assess_database_indicators(
         adv_vars: dict = {"where": where}
         if query:
             adv_vars["q"] = query
-        data = await client.query(ADVANCED_SEARCH_QUERY, adv_vars)
+        data = await client.query(ADVANCED_SEARCH_QUERY, adv_vars, timeout=90, max_retries=1)
         records = data.get("advancedSearch", [])
     except FAIRsharingAuthError:
         raise

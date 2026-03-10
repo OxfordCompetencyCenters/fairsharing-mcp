@@ -739,7 +739,9 @@ async def count_fair_records(
                 adv_vars: dict = {"where": where}
                 if query:
                     adv_vars["q"] = query
-                adv_data = await client.query(ADVANCED_SEARCH_QUERY, adv_vars)
+                adv_data = await client.query(
+                    ADVANCED_SEARCH_QUERY, adv_vars, timeout=90, max_retries=1,
+                )
                 records = adv_data.get("advancedSearch", [])
             except FAIRsharingAuthError:
                 raise
@@ -1122,7 +1124,9 @@ async def advanced_filter_records(
                 adv_vars: dict = {"where": where}
                 if query:
                     adv_vars["q"] = query
-                adv_data = await client.query(ADVANCED_SEARCH_QUERY, adv_vars)
+                adv_data = await client.query(
+                    ADVANCED_SEARCH_QUERY, adv_vars, timeout=90, max_retries=1,
+                )
                 records = adv_data.get("advancedSearch", [])
             except FAIRsharingAuthError:
                 raise
