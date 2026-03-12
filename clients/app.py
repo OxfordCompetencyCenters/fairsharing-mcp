@@ -94,18 +94,20 @@ def _render_header() -> None:
 
 def _render_message_with_copy(content: str) -> None:
     """Render an assistant message with a copy-to-clipboard button."""
+    import base64
+
     st.markdown(content)
-    escaped = content.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
-    copy_html = f"""
-    <button onclick="navigator.clipboard.writeText(`{escaped}`).then(
-        () => this.textContent = 'Copied!',
-        () => this.textContent = 'Failed'
-    ).finally(() => setTimeout(() => this.textContent = '\U0001f4cb Copy', 2000))"
-    style="background: transparent; border: 1px solid #555; border-radius: 4px;
-           color: #aaa; padding: 2px 8px; font-size: 0.75rem; cursor: pointer;
-           float: right; margin-top: -0.5rem;">
-    \U0001f4cb Copy</button>
-    """
+    b64 = base64.b64encode(content.encode()).decode()
+    copy_html = (
+        f'<button onclick="navigator.clipboard.writeText(atob(\'{b64}\')).then('
+        "() => this.textContent = 'Copied!',"
+        "() => this.textContent = 'Failed'"
+        ").finally(() => setTimeout(() => this.textContent = '\U0001f4cb Copy', 2000))\" "
+        "style=\"background: transparent; border: 1px solid #555; border-radius: 4px; "
+        "color: #aaa; padding: 2px 8px; font-size: 0.75rem; cursor: pointer; "
+        'float: right; margin-top: -0.5rem;">'
+        "\U0001f4cb Copy</button>"
+    )
     st.markdown(copy_html, unsafe_allow_html=True)
 
 
