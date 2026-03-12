@@ -93,33 +93,37 @@ def _render_header() -> None:
 # ---------------------------------------------------------------------------
 
 def _render_message_with_copy(content: str) -> None:
-    """Render an assistant message with a copy-to-clipboard button at top."""
+    """Render an assistant message with a copy button in the top-right corner."""
     import base64
 
     import streamlit.components.v1 as components
 
     b64 = base64.b64encode(content.encode()).decode()
-    components.html(
-        f"""
-        <button id="copybtn" style="background:transparent; border:1px solid #555;
-            border-radius:4px; color:#aaa; padding:2px 8px; font-size:0.75rem;
-            cursor:pointer;">
-        \U0001f4cb Copy</button>
-        <script>
-        document.getElementById('copybtn').addEventListener('click', function() {{
-            var btn = this;
-            var text = atob('{b64}');
-            navigator.clipboard.writeText(text).then(
-                function() {{ btn.textContent = 'Copied!'; }},
-                function() {{ btn.textContent = 'Failed'; }}
-            ).finally(function() {{
-                setTimeout(function() {{ btn.textContent = '\U0001f4cb Copy'; }}, 2000);
+
+    # Top row: spacer on left, copy button on right
+    _, btn_col = st.columns([9, 1])
+    with btn_col:
+        components.html(
+            f"""
+            <button id="copybtn" style="background:transparent; border:1px solid #555;
+                border-radius:4px; color:#aaa; padding:2px 8px; font-size:0.75rem;
+                cursor:pointer; white-space:nowrap;">
+            \U0001f4cb Copy</button>
+            <script>
+            document.getElementById('copybtn').addEventListener('click', function() {{
+                var btn = this;
+                var text = atob('{b64}');
+                navigator.clipboard.writeText(text).then(
+                    function() {{ btn.textContent = 'Copied!'; }},
+                    function() {{ btn.textContent = 'Failed'; }}
+                ).finally(function() {{
+                    setTimeout(function() {{ btn.textContent = '\U0001f4cb Copy'; }}, 2000);
+                }});
             }});
-        }});
-        </script>
-        """,
-        height=32,
-    )
+            </script>
+            """,
+            height=32,
+        )
     st.markdown(content)
 
 
