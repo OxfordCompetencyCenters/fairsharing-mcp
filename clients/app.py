@@ -89,6 +89,27 @@ def _render_header() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Copy-to-clipboard helper
+# ---------------------------------------------------------------------------
+
+def _render_message_with_copy(content: str) -> None:
+    """Render an assistant message with a copy-to-clipboard button."""
+    st.markdown(content)
+    escaped = content.replace("\\", "\\\\").replace("`", "\\`").replace("$", "\\$")
+    copy_html = f"""
+    <button onclick="navigator.clipboard.writeText(`{escaped}`).then(
+        () => this.textContent = 'Copied!',
+        () => this.textContent = 'Failed'
+    ).finally(() => setTimeout(() => this.textContent = '\U0001f4cb Copy', 2000))"
+    style="background: transparent; border: 1px solid #555; border-radius: 4px;
+           color: #aaa; padding: 2px 8px; font-size: 0.75rem; cursor: pointer;
+           float: right; margin-top: -0.5rem;">
+    \U0001f4cb Copy</button>
+    """
+    st.markdown(copy_html, unsafe_allow_html=True)
+
+
+# ---------------------------------------------------------------------------
 # Chat interface
 # ---------------------------------------------------------------------------
 
@@ -99,7 +120,10 @@ def _render_chat() -> None:
     # Replay history
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"]):
-            st.markdown(msg["content"])
+            if msg["role"] == "assistant":
+                _render_message_with_copy(msg["content"])
+            else:
+                st.markdown(msg["content"])
 
     # Accept new input
     if prompt := st.chat_input("Ask about FAIRsharing standards, databases, or policies..."):
@@ -118,7 +142,7 @@ def _render_chat() -> None:
                 except Exception as exc:
                     response = f"Error: {exc}"
 
-            st.markdown(response)
+            _render_message_with_copy(response)
 
         st.session_state.history.add_user(prompt)
         st.session_state.history.add_assistant(response)
