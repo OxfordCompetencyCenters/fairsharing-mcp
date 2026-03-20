@@ -28,6 +28,10 @@ build/
 # Claude Code local settings
 .claude/
 
+# Project planning/guidance files (local only)
+BLUEPRINT.md
+CLAUDE.md
+
 # Conversation logs (local)
 logs/conversations/
 

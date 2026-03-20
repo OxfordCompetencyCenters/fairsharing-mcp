@@ -19,19 +19,19 @@
 
 ## 1. Executive Summary
 
-The FAIRsharing MCP Server is a Model Context Protocol (MCP) server that exposes the [FAIRsharing](https://fairsharing.org) GraphQL API as **95 structured tools** across **11 domain modules**. FAIRsharing is a curated registry of data standards, databases, and policies for the life sciences, used by researchers, funders, and journal publishers to discover and evaluate FAIR (Findable, Accessible, Interoperable, Reusable) resources.
+The FAIRsharing MCP Server is a Model Context Protocol (MCP) server that exposes the [FAIRsharing](https://fairsharing.org) GraphQL API as **96 structured tools** across **11 domain modules**. FAIRsharing is a curated registry of data standards, databases, and policies for the life sciences, used by researchers, funders, and journal publishers to discover and evaluate FAIR (Findable, Accessible, Interoperable, Reusable) resources.
 
 ### Key Metrics
 
 | Metric | Value |
 |--------|-------|
-| Total MCP tools | 95 |
+| Total MCP tools | 96 |
 | Tool modules | 11 |
 | Supporting modules | 10 |
 | Lines of code (source) | 18,207 |
 | Lines of code (tests) | 7,781 |
-| Test count | 256 |
-| GraphQL query constants | 26 |
+| Test count | 282 |
+| GraphQL query constants | 27 |
 | Graph algorithms | 8 (pure Python, no networkx) |
 | Python version | 3.10+ |
 | Dependencies | 3 (mcp, httpx, python-dotenv) |
@@ -117,7 +117,7 @@ server.py
              ├── formatters.py     (output formatting, scoring)
              ├── helpers.py        (fallback fetchers, mandate extraction)
              ├── graph_utils.py    (ParsedGraph, merge, thread offloading)
-             ├── queries.py        (26 GraphQL query constants)
+             ├── queries.py        (27 GraphQL query constants)
              ├── constants.py      (validation sets, weights, thresholds)
              ├── config.py         (environment-based configuration)
              └── validation.py     (input sanitization)
@@ -128,7 +128,7 @@ server.py
 `app.py` must **never** import from `tools/`. All tool modules import `app.get_client()` at call time (not at import time). This enables:
 
 1. **Clean registration**: `tools/__init__.py` imports all 11 modules, triggering `@mcp.tool()` decorators
-2. **Single mock target**: All 256 tests patch one location — `fairsharing_mcp.app.get_client`
+2. **Single mock target**: All 282 tests patch one location — `fairsharing_mcp.app.get_client`
 3. **No import cycles**: The `_compute_quality_for_record()` helper lives in `tools/quality.py` (not `helpers.py`) specifically to avoid a tools → helpers → tools dependency cycle
 
 ### 2.4 STDIO Protocol Constraint
@@ -207,6 +207,8 @@ Caching is opt-in per call via `cache=True`. It is used for reference data (subj
 
 Jitter: random multiplier in [0.8, 1.2] to prevent thundering herd.
 
+**Per-call overrides:** `client.query()` accepts `timeout: float | None` and `max_retries: int | None` keyword arguments that override the instance defaults for that single call. Used by `advancedSearch` calls which use `timeout=90, max_retries=1` (single long attempt instead of 3 retries) to stay within the MCP client's 120-second limit.
+
 #### 3.3.4 Connection Pooling
 
 The client lazily creates a persistent `httpx.AsyncClient` instance, reusing TCP connections across requests. Headers (`Accept`, `Content-Type`, `X-GraphQL-Key`) are configured at client construction, not per-request.
@@ -219,6 +221,7 @@ Response types handled:
 - `searchFairsharingRecords` → iterates `records` list
 - `multiTagFilter` → iterates flat list
 - `fairsharingRecord` → single record
+- `advancedSearch` → iterates flat list
 
 #### 3.3.6 Error Hierarchy
 
@@ -277,6 +280,7 @@ All configuration is environment-based, read via `os.getenv()` after `load_doten
 | `fetch_policy_with_fallback(record_id)` | Tries `GET_POLICY_DETAIL_QUERY`, falls back to `GET_RECORD_QUERY`; re-raises auth errors |
 | `fetch_database_quality_with_fallback(record_id)` | Tries `GET_DATABASE_QUALITY_QUERY`, falls back to `GET_RECORD_QUERY`; re-raises auth errors |
 | `matches_date_range(date_str, min_year, max_year)` | Pure function: parses ISO date, returns `True` if year in range |
+| `build_advanced_search_where(**kwargs)` | Maps snake_case FAIR indicator params → camelCase `AdvancedSearchAttributes` dict; wraps string values in lists for LIST-type fields; omits `None` values |
 
 ### 3.7 Graph Utilities — `graph_utils.py` (215 lines)
 
@@ -339,7 +343,7 @@ Method: POST (JSON body with query + variables)
 
 ### 4.2 Query Constants (`queries.py` — 425 lines)
 
-The server defines 26 GraphQL query constants, grouped by domain:
+The server defines 27 GraphQL query constants, grouped by domain:
 
 #### Record Queries
 
@@ -387,18 +391,25 @@ The server defines 26 GraphQL query constants, grouped by domain:
 | `GET_POLICY_DETAIL_QUERY` | `fairsharingRecord` | Includes `metadata` field for mandate extraction |
 | `GET_DATABASE_QUALITY_QUERY` | `fairsharingRecord` | Includes all 9 FAIR indicator fields |
 
+#### Advanced Search Queries
+
+| Constant | GraphQL Operation | Key Behaviour |
+|----------|------------------|---------------|
+| `ADVANCED_SEARCH_QUERY` | `advancedSearch` | Variable `$where: AdvancedSearchAttributes!` + `$q: String`; **returns flat list**; supports 50+ server-side filters (FAIR indicators, `objectTypes`, `registry`, `type`, boolean flags); no `metadata` field (avoid large payloads) |
+
 ### 4.3 API Quirks
 
 1. **`multiTagFilter` returns a flat list**, not `{records, totalCount, totalPages}` like `searchFairsharingRecords`. Client-side pagination is required.
-2. **No server-side date filtering.** Date ranges are implemented via client-side scanning (configurable via `max_scan`).
-3. **Policy mandate data** lives in a nested `metadata` JSON blob, not flat fields. The `extract_policy_mandates()` helper denormalizes this.
-4. **Graph data** is returned as a JSON string (or dict) with `nodes` and `edges` arrays. Edge "colors" encode relationship types.
+2. **`advancedSearch` also returns a flat list.** It supports `$where: AdvancedSearchAttributes!` for server-side FAIR indicator filtering, but the response has no pagination envelope. Three tools use it as primary path with `multiTagFilter` fallback: `assess_database_indicators`, `count_fair_records`, `advanced_filter_records`.
+3. **No server-side date filtering.** Date ranges are implemented via client-side scanning (configurable via `max_scan`).
+4. **Policy mandate data** lives in a nested `metadata` JSON blob, not flat fields. The `extract_policy_mandates()` helper denormalizes this.
+5. **Graph data** is returned as a JSON string (or dict) with `nodes` and `edges` arrays. Edge "colors" encode relationship types.
 
 ---
 
 ## 5. Tool Modules — Complete Reference
 
-All 95 tools are async functions decorated with `@app.mcp.tool()`. Every tool:
+All 96 tools are async functions decorated with `@app.mcp.tool()`. Every tool:
 - Returns `str` (either markdown or JSON)
 - Accepts `output_format: str = "markdown"` parameter
 - Calls `app.get_client()` at invocation time (not import time)
@@ -414,7 +425,7 @@ All 95 tools are async functions decorated with `@app.mcp.tool()`. Every tool:
 | 5 | `advanced_filter_records` | query, registry, record_type, status, subjects, domains, taxonomies, user_defined_tags, is_recommended, is_approved, is_maintained, has_publication, is_implemented, uses_persistent_identifier, has_preservation_policy, has_resource_sustainability, data_access, data_curation, data_deposition_condition, citation_to_publications, data_contact_info, data_versioning, recommends_database, recommends_standard, page, per_page, output_format | All `multiTagFilter` parameters exposed |
 | 6 | `search_by_doi` | doi, output_format | DOI lookup with URL normalization (handles doi.org URLs and fairsharing.org URLs) |
 
-### 5.2 Record Tools — `records.py` (793 lines, 6 tools)
+### 5.2 Record Tools — `records.py` (793 lines, 7 tools)
 
 | # | Tool | Parameters | Summary |
 |---|------|-----------|---------|
@@ -424,6 +435,7 @@ All 95 tools are async functions decorated with `@app.mcp.tool()`. Every tool:
 | 10 | `filter_records_by_date` | query, min_year, max_year, registry, limit, use_updated_at, max_scan, output_format | Client-side date filtering with configurable scan depth |
 | 11 | `get_records_batch` | record_ids (2–50), output_format | Bulk fetch multiple records by ID |
 | 12 | `find_referencing_records` | record_id, relationship, registry, output_format | Reverse lookup: who references this record? |
+| 13 | `resolve_identifier` | identifier, output_format | Resolve a FAIRsharing DOI, URL, or abbreviation to a record ID and canonical URL |
 
 ### 5.3 Taxonomy Tools — `taxonomy.py` (811 lines, 11 tools)
 
@@ -738,7 +750,7 @@ Tier 3: Unified Scoring (cross-registry)
 
 ## 8. Output Format System
 
-All 95 tools support dual output via the `output_format` parameter:
+All 96 tools support dual output via the `output_format` parameter:
 
 ### 8.1 Markdown Output (default)
 
@@ -808,6 +820,15 @@ async def some_tool(record_id: int, output_format: str = "markdown") -> str:
 | Request timeout | 30s | `FAIRsharingClient(timeout=...)` |
 | Max retries | 3 | `FAIRsharingClient(max_retries=...)` |
 
+**Per-call overrides** (passed to `client.query()`):
+
+| Parameter | Type | Purpose |
+|-----------|------|---------|
+| `timeout` | `float \| None` | Override timeout for this call only |
+| `max_retries` | `int \| None` | Override retry count for this call only |
+
+`advancedSearch` calls use `timeout=90, max_retries=1` to fit within the MCP client's 120-second hard limit while allowing enough time for large result sets.
+
 ---
 
 ## 10. Test Infrastructure
@@ -816,10 +837,10 @@ async def some_tool(record_id: int, output_format: str = "markdown") -> str:
 
 | Metric | Value |
 |--------|-------|
-| Test file | `tests/test_server.py` (7,670 lines) |
-| Shared fixtures | `tests/conftest.py` (111 lines) |
+| Test file | `tests/test_server.py` |
+| Shared fixtures | `tests/conftest.py` |
 | Test class | `TestFAIRsharingServer(unittest.IsolatedAsyncioTestCase)` |
-| Total tests | 256 |
+| Total tests | 282 |
 | Test runner | `python -m pytest tests/test_server.py` |
 | CI/CD | GitHub Actions → Azure Web App |
 
@@ -853,6 +874,7 @@ async def test_example(self, mock_get_client):
 | `make_standard(**overrides)` | Standard record | registry="Standard", type="model/format" |
 | `make_policy(**overrides)` | Policy record | 15 mandate fields pre-populated |
 | `make_search_result(records, total, pages)` | Search response envelope | `searchFairsharingRecords: {records, totalCount, totalPages}` |
+| `make_advanced_search_result(records)` | advancedSearch response envelope | `advancedSearch: [...]` flat list |
 
 ### 10.4 Graph Test Helpers
 
@@ -908,12 +930,65 @@ ruff format src/ tests/
 # Install
 uv sync
 
-# Run the MCP server
+# Run the MCP server (stdio transport — typically launched by MCP client)
 uv run fairsharing-mcp
 
 # Or via Python entry point
 python -m fairsharing_mcp.server
 ```
+
+### 11.1a Streamlit Chat UI
+
+A browser-based conversational interface ships in the `clients/` package.
+
+**Prerequisites:**
+
+```bash
+# Create .env in project root
+echo "FAIRSHARING_API_KEY=your-key" > .env
+# If using the OpenAI Agents provider:
+# echo "OPENAI_API_KEY=your-key" >> .env
+```
+
+**Start:**
+
+```bash
+streamlit run clients/app.py
+```
+
+Opens at `http://localhost:8501`.
+
+**Client package structure:**
+
+```
+clients/
+├── app.py                  # Streamlit entry point
+├── base.py                 # AbstractProvider base class
+├── config.py               # Provider configuration loader (.env / env vars)
+├── history.py              # ConversationHistory (message list wrapper)
+├── conversation_logger.py  # Logs turns to logs/conversations/
+├── repl.py                 # Terminal REPL alternative to Streamlit
+├── requirements.txt        # Client-only dependencies (streamlit, etc.)
+└── providers/
+    ├── __init__.py         # Provider registry / factory
+    └── openai_agents.py    # OpenAI Agents SDK provider with FAIRsharing SYSTEM_PROMPT
+```
+
+**Provider:** `openai_agents.py` connects to the local MCP server via the OpenAI Agents SDK (`openai-agents`). The `SYSTEM_PROMPT` instructs the model to:
+- Always include FAIRsharing URLs as markdown hyperlinks
+- Cite the specific tool used for each fact
+- Self-verify output before responding
+
+**Environment variables for client:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LLM_PROVIDER` | `openai_agents` | Provider to use |
+| `OPENAI_API_KEY` | — | OpenAI API key (required for openai_agents) |
+| `OPENAI_MODEL` | `gpt-4o` | Model name |
+| `FAIRSHARING_MCP_COMMAND` | `uv` | Command to launch MCP server |
+| `FAIRSHARING_API_KEY` | — | Passed to the MCP subprocess |
+| `CONVERSATION_LOG_DIR` | `logs/conversations/` | Where to write conversation logs |
 
 ### 11.2 MCP Client Configuration
 
@@ -957,7 +1032,7 @@ fairsharing-mcp/
 │       ├── client.py                 # GraphQL client with rate limiting, cache, retry (393 lines)
 │       ├── config.py                 # Environment-based configuration (92 lines)
 │       ├── validation.py             # Input validation utilities (68 lines)
-│       ├── queries.py                # 26 GraphQL query constants (425 lines)
+│       ├── queries.py                # 27 GraphQL query constants (425 lines)
 │       ├── constants.py              # Weights, thresholds, validation sets (135 lines)
 │       ├── formatters.py             # Output formatting + scoring (832 lines)
 │       ├── helpers.py                # Fallback fetchers, mandate extraction (163 lines)
@@ -965,7 +1040,7 @@ fairsharing-mcp/
 │       └── tools/
 │           ├── __init__.py           # Imports all 11 modules (16 lines)
 │           ├── search.py             # 6 tools — Search, DOI lookup (964 lines)
-│           ├── records.py            # 6 tools — Record detail, batch fetch (793 lines)
+│           ├── records.py            # 7 tools — Record detail, batch fetch, resolve (793 lines)
 │           ├── taxonomy.py           # 11 tools — Subjects, domains, species (811 lines)
 │           ├── organisations.py      # 6 tools — Orgs, countries, regions (683 lines)
 │           ├── standards.py          # 10 tools — Maturity, adoption, emerging (1,788 lines)
@@ -977,8 +1052,19 @@ fairsharing-mcp/
 │           ├── discovery.py          # 14 tools — Workflows, health, orphans (2,020 lines)
 │           └── curator.py            # 2 tools — Metadata auditing (321 lines)
 ├── tests/
-│   ├── conftest.py                   # Shared fixtures (111 lines)
-│   └── test_server.py               # 256 tests (7,670 lines)
+│   ├── conftest.py                   # Shared fixtures
+│   └── test_server.py               # 282 tests
+├── clients/                          # Optional chat UI + client library
+│   ├── app.py                        # Streamlit chat interface
+│   ├── base.py                       # AbstractProvider
+│   ├── config.py                     # Client configuration
+│   ├── history.py                    # Conversation history
+│   ├── conversation_logger.py        # Turn logger
+│   ├── repl.py                       # Terminal REPL
+│   ├── requirements.txt              # Client dependencies
+│   └── providers/
+│       ├── __init__.py
+│       └── openai_agents.py          # OpenAI Agents SDK provider
 └── Documentation/
     ├── images/
     └── TECHNICAL_DOCUMENTATION.md    # This document
@@ -1029,4 +1115,4 @@ All scoring weights are **heuristic, not empirically calibrated**. Output includ
 
 ---
 
-*Generated from codebase analysis of fairsharing-mcp v0.1.0 — 25,988 total lines of code across 26 source files and 2 test files.*
+*Generated from codebase analysis of fairsharing-mcp v0.1.0 — 96 tools, 282 tests, 27 GraphQL query constants.*

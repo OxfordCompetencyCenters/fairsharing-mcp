@@ -1,6 +1,6 @@
 # fairsharing-mcp
 
-An MCP (Model Context Protocol) server that exposes the [FAIRsharing](https://fairsharing.org) GraphQL API as **95 tools** for discovering, analyzing, and comparing data standards, databases, and policies in life sciences research.
+An MCP (Model Context Protocol) server that exposes the [FAIRsharing](https://fairsharing.org) GraphQL API as **96 tools** for discovering, analyzing, and comparing data standards, databases, and policies in life sciences research.
 
 [FAIRsharing](https://fairsharing.org) is a curated registry of standards, databases, and data policies used and recommended by journals, funders, and institutions. This MCP server gives AI assistants structured access to its knowledge graph.
 
@@ -16,6 +16,66 @@ An MCP (Model Context Protocol) server that exposes the [FAIRsharing](https://fa
 git clone https://github.com/fairsharing/fairsharing-mcp.git
 cd fairsharing-mcp
 uv sync
+```
+
+## Running the Applications
+
+### MCP Server (for Claude Desktop, VS Code, etc.)
+
+```bash
+# Set your API key
+export FAIRSHARING_API_KEY=your-api-key
+
+# Start the MCP server (stdio transport)
+uv run fairsharing-mcp
+```
+
+The server communicates over stdout/stdin (stdio transport). It is typically launched automatically by your MCP client (Claude Desktop, VS Code Copilot, etc.) — you do not need to start it manually.
+
+### Streamlit Chat UI
+
+A browser-based chatbot interface is included in the `clients/` directory.
+
+**Step 1 — Create a `.env` file** in the project root:
+
+```bash
+# Required
+FAIRSHARING_API_KEY=your-api-key
+
+# Optional: choose LLM provider (default: openai_agents)
+# LLM_PROVIDER=openai_agents
+# OPENAI_API_KEY=your-openai-key
+# OPENAI_MODEL=gpt-4o
+```
+
+**Step 2 — Install client dependencies:**
+
+```bash
+uv sync
+# If using the OpenAI Agents provider:
+pip install openai-agents
+```
+
+**Step 3 — Start the app:**
+
+```bash
+streamlit run clients/app.py
+```
+
+The app opens at [http://localhost:8501](http://localhost:8501).
+
+**Features:**
+- Conversational interface backed by the full MCP tool suite
+- Copy-to-clipboard button on every assistant response
+- Session conversation logging to `logs/conversations/`
+- Clear conversation button
+
+### REPL (Command-line)
+
+For quick terminal-based interaction:
+
+```bash
+python -m clients.repl
 ```
 
 ## MCP Client Configuration
@@ -70,7 +130,7 @@ Add to `.vscode/settings.json`:
 
 See `.env.example` for the full list including display limits.
 
-## Tools (95 total)
+## Tools (96 total)
 
 All tools are prefixed with `fairsharing_` and support both `markdown` (default) and `json` output formats via the `output_format` parameter.
 
@@ -85,7 +145,7 @@ All tools are prefixed with `fairsharing_` and support both `markdown` (default)
 | `fairsharing_advanced_filter_records` | Search with all filters including FAIR indicators |
 | `fairsharing_search_by_doi` | Look up a record by DOI or FAIRsharing URL |
 
-### Records (6 tools)
+### Records (7 tools)
 
 | Tool | Description |
 |------|-------------|
@@ -95,6 +155,7 @@ All tools are prefixed with `fairsharing_` and support both `markdown` (default)
 | `fairsharing_filter_records_by_date` | Find records by creation/update year range |
 | `fairsharing_get_records_batch` | Bulk fetch 2-50 records by ID list |
 | `fairsharing_find_referencing_records` | Reverse-lookup records that reference a given record |
+| `fairsharing_resolve_identifier` | Resolve a FAIRsharing DOI, URL, or abbreviation to a record ID |
 
 ### Taxonomy (11 tools)
 
@@ -270,7 +331,7 @@ ranking standards by adoption, policy endorsement, and stability.
 
 ## Output Formats
 
-All 95 tools accept `output_format` parameter:
+All 96 tools accept `output_format` parameter:
 
 - **`"markdown"`** (default) — Human-readable formatted output
 - **`"json"`** — Machine-readable structured data, suitable for programmatic chaining between tools
@@ -283,16 +344,17 @@ server.py -> tools/__init__.py -> tools/*.py -> app.py -> client.py -> FAIRshari
 
 - **FastMCP** framework with stdio transport
 - **Async GraphQL client** with token bucket rate limiting (5 RPS), LRU response cache (500 entries), connection pooling
-- **95 tools** across 12 modules with MCP annotations (`readOnlyHint`, `idempotentHint`, `openWorldHint`)
+- **96 tools** across 11 domain modules with MCP annotations (`readOnlyHint`, `idempotentHint`, `openWorldHint`)
 - **Pydantic Field validation** on all tool parameters (range constraints, patterns, descriptions)
 - **Pure Python** graph algorithms (no networkx) — CPU-bound work offloaded to `asyncio.to_thread()`
+- **27 GraphQL query constants** including `advancedSearch` for server-side FAIR indicator filtering
 
 See `CLAUDE.md` for detailed architecture documentation.
 
 ## Development
 
 ```bash
-# Run all tests (256 tests)
+# Run all tests (282 tests)
 python -m pytest tests/test_server.py
 
 # Run specific tests
