@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AI Assistant</title>
   <style>
-    :root { --primary-color: #78b2e8; --secondary-color: #3a6d98; --primary-rgb: 120, 178, 232; }
+    :root { --primary-color: #78b2e8; --secondary-color: #3a6d98; --primary-rgb: 120, 178, 232; --secondary-rgb: 58, 109, 152; }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif; background: transparent; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-    .chat-container { width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
+    .chat-container { width: 100%; height: 100%; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 0; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.3s ease, box-shadow 0.3s ease; }
     .chat-container:hover { transform: translateY(-2px); box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.15); }
     .chat-header { padding: 20px 24px; background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%); color: #fff; display: flex; align-items: center; gap: 14px; position: relative; overflow: hidden; }
     .chat-header::before { content: ''; position: absolute; top: -50%; right: -50%; width: 100%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%); pointer-events: none; }
@@ -19,9 +19,11 @@
     .online-indicator { width: 10px; height: 10px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3); animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3); } 50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.1); } }
     .chat-messages { flex: 1; padding: 20px; overflow-y: auto; background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); font-size: 14px; scroll-behavior: smooth; }
-    .chat-messages::-webkit-scrollbar { width: 6px; }
-    .chat-messages::-webkit-scrollbar-track { background: transparent; }
-    .chat-messages::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 3px; }
+    .chat-messages { scrollbar-gutter: stable; }
+    .chat-messages::-webkit-scrollbar { width: 7px; }
+    .chat-messages::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.03); }
+    .chat-messages::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.15); border-radius: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.25); }
     .msg { margin-bottom: 16px; display: flex; animation: slideIn 0.3s ease-out; }
     @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .msg.user { justify-content: flex-end; }
@@ -39,6 +41,7 @@
     .chat-input button:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4); }
     .chat-input button:active:not(:disabled) { transform: scale(0.95); }
     .chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .chat-input button:focus-visible { outline: 2px solid var(--primary-color); outline-offset: 2px; }
     .chat-input button svg { width: 20px; height: 20px; transition: transform 0.2s ease; }
     .chat-input button:hover:not(:disabled) svg { transform: translateX(2px); }
     .status { font-size: 11px; color: #64748b; padding: 8px 20px 0; text-align: center; }
@@ -84,6 +87,34 @@
     .bubble markdown h2 { font-size: 1.25em; font-weight: 700; margin: 12px 0 6px; }
     .bubble markdown h3 { font-size: 1.1em; font-weight: 600; margin: 10px 0 4px; }
     .bubble markdown hr { border: none; border-top: 1px solid #e2e8f0; margin: 12px 0; }
+    .cite-chip { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 4px; background: var(--primary-color, #0ea5e9); color: white; font-size: 11px; font-weight: 600; cursor: pointer; vertical-align: super; margin: 0 1px; line-height: 1; transition: background 0.15s; }
+    .cite-chip:hover { filter: brightness(0.85); }
+    .cite-tooltip { position: fixed; max-width: 340px; background: #1e293b; color: #e2e8f0; border-radius: 8px; padding: 10px 14px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); z-index: 9999; animation: citeIn 0.15s ease-out; }
+    .cite-tooltip-title { font-weight: 600; color: #38bdf8; margin-bottom: 6px; font-size: 12px; }
+    .cite-tooltip-link { color: #38bdf8; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; transition: color 0.15s; }
+    .cite-tooltip-link:hover { color: #7dd3fc; }
+    .cite-tooltip-source { font-size: 11px; color: #94a3b8; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cite-tooltip-quote { font-style: italic; color: #cbd5e1; font-size: 12px; line-height: 1.5; }
+    @keyframes citeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+    .activity-panel { background: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 12px; margin: 0 16px 6px 56px; overflow: hidden; transition: max-height 0.35s ease, opacity 0.25s ease; max-height: 320px; opacity: 1; }
+    .activity-panel.collapsed { max-height: 32px; cursor: pointer; }
+    .activity-header { display: flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: #64748b; user-select: none; cursor: pointer; }
+    .activity-header svg { width: 14px; height: 14px; flex-shrink: 0; transition: transform 0.25s; }
+    .activity-panel.collapsed .activity-header svg { transform: rotate(-90deg); }
+    .activity-items { max-height: 260px; overflow-y: auto; padding: 0 12px 8px; }
+    .activity-panel.collapsed .activity-items { display: none; }
+    .activity-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; font-size: 12px; color: #475569; line-height: 1.45; border-bottom: 1px solid #e2e8f0; animation: actItemIn 0.2s ease-out; }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-item-icon { flex-shrink: 0; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 11px; }
+    .activity-item-body b { color: #334155; }
+    .activity-item.expandable { cursor: pointer; flex-wrap: wrap; }
+    .activity-item.expandable:hover { background: #e2e8f0; border-radius: 6px; }
+    .activity-item.expandable .activity-item-body::after { content: ' \25B8'; font-size: 10px; color: #94a3b8; transition: transform 0.2s; }
+    .activity-item.expanded .activity-item-body::after { content: ' \25BE'; }
+    .activity-detail { display: none; width: 100%; margin-top: 4px; padding: 8px 10px; background: #e8ecf1; border-radius: 6px; font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 11px; line-height: 1.55; color: #334155; white-space: pre-wrap; word-break: break-word; max-height: 180px; overflow-y: auto; animation: detailSlide 0.2s ease-out; }
+    .activity-item.expanded .activity-detail { display: block; }
+    @keyframes detailSlide { from { opacity: 0; max-height: 0; } to { opacity: 1; max-height: 180px; } }
+    @keyframes actItemIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: translateX(0); } }
   </style>
 </head>
 <body>
@@ -128,7 +159,7 @@
   const ENDPOINT_URL = 'https://aicc.uksouth.cloudapp.azure.com/api/workflow-deploy/9abeb5c7-1854-4bac-b482-2cd2ab39f246/';
   const STREAM_URL = ENDPOINT_URL.replace(/\/$/, '') + '/stream/';
   const SUBMIT_INPUT_URL = ENDPOINT_URL.replace(/\/$/, '') + '/submit-input/';
-  const INITIAL_GREETING = "Hi! I am your FAIRsharing Documentation Assistant.";
+  const INITIAL_GREETING = "Hi! I am your AI assistant.";
 
   // Enhanced markdown renderer
   function renderMarkdown(text) {
@@ -196,8 +227,139 @@
     return html;
   }
 
+  function parseCitations(text) {
+    var pattern = /---CITATIONS---\s*([\s\S]*?)\s*---END_CITATIONS---/;
+    var m = text.match(pattern);
+    if (!m) return { cleanText: text, citations: [] };
+    var cleanText = text.slice(0, m.index).trim();
+    cleanText = cleanText.replace(/[\n\r]+(?:#{1,6}\s*)?(?:\*{1,2})?CITATIONS(?:\*{1,2})?\s*$/i, "").trim();
+    var citations = [];
+    try {
+      citations = JSON.parse(m[1].trim());
+      if (!Array.isArray(citations)) citations = [];
+      else citations = citations.filter(function(c) {
+        if (!c || typeof c !== "object") return false;
+        var r = parseInt(c.ref, 10);
+        if (isNaN(r)) return false;
+        c.ref = r;
+        return true;
+      });
+    } catch(e) { citations = []; }
+    return { cleanText: cleanText, citations: citations };
+  }
+
+  function renderCitationChips(html, citations) {
+    if (!citations || citations.length === 0) return html;
+    return html.replace(/\[(\d+)\]/g, function(match, num) {
+      var ref = parseInt(num, 10);
+      var cit = citations.find(function(c) { return Number(c.ref) === ref; });
+      if (!cit) return match;
+      return '<span class="cite-chip" data-ref="' + ref + '">' + ref + '</span>';
+    });
+  }
+
+  var _chatCitations = [];
+  var _activeCiteTooltip = null;
+
+  function showCiteTooltip(chipEl, ref) {
+    if (_activeCiteTooltip) { _activeCiteTooltip.remove(); _activeCiteTooltip = null; }
+    var cit = _chatCitations.find(function(c) { return Number(c.ref) === ref; });
+    if (!cit) return;
+    var tip = document.createElement('div');
+    tip.className = 'cite-tooltip';
+    var isWeb = cit.url || cit.source === 'web';
+    var titleHtml;
+    if (isWeb && cit.url) {
+      var safeUrl = cit.url.replace(/"/g, '&quot;').replace(/</g, '&lt;');
+      titleHtml = '<a class="cite-tooltip-link" href="' + safeUrl + '" target="_blank" rel="noopener">' + (cit.document_title || cit.url).replace(/</g, '&lt;') + '</a>';
+    } else {
+      var loc = '';
+      if (cit.page) loc += 'p.' + cit.page;
+      if (cit.section) loc += (loc ? ', ' : '') + cit.section;
+      titleHtml = '<a class="cite-tooltip-link" href="#" data-docid="' + (cit.document_id || '') + '">' + (cit.document_title || 'Source').replace(/</g, '&lt;') + (loc ? ' \u2014 ' + loc : '') + '</a>';
+    }
+    var sourceHtml = '';
+    if (isWeb && cit.url) {
+      try {
+        var domain = new URL(cit.url).hostname.replace(/^www\\./, '');
+        sourceHtml = '<div class="cite-tooltip-source">\uD83C\uDF10 ' + domain.replace(/</g, '&lt;') + '</div>';
+      } catch(_e) {
+        sourceHtml = '<div class="cite-tooltip-source">\uD83C\uDF10 Web</div>';
+      }
+    }
+    tip.innerHTML = '<div class="cite-tooltip-title">' + titleHtml + '</div>' + sourceHtml + '<div class="cite-tooltip-quote">\u201C' + ((cit.quoted_text || '').slice(0, 300).replace(/</g,'&lt;')) + '\u201D</div>';
+    document.body.appendChild(tip);
+    var rect = chipEl.getBoundingClientRect();
+    tip.style.left = Math.min(rect.left, window.innerWidth - tip.offsetWidth - 8) + 'px';
+    tip.style.top = (rect.bottom + 6) + 'px';
+    _activeCiteTooltip = tip;
+  }
+
+  document.addEventListener('click', function(e) {
+    var link = e.target.closest && e.target.closest('.cite-tooltip-link');
+    if (link) {
+      if (link.dataset.docid) { e.preventDefault(); openCitationDocument(link.dataset.docid); return; }
+      if (link.href && link.target === '_blank') { return; }
+    }
+    var chip = e.target.closest && e.target.closest('.cite-chip');
+    if (chip) {
+      var ref = parseInt(chip.dataset.ref, 10);
+      if (_activeCiteTooltip && _activeCiteTooltip._ref === ref) {
+        _activeCiteTooltip.remove(); _activeCiteTooltip = null;
+      } else {
+        showCiteTooltip(chip, ref);
+        if (_activeCiteTooltip) _activeCiteTooltip._ref = ref;
+      }
+    } else if (_activeCiteTooltip) {
+      _activeCiteTooltip.remove(); _activeCiteTooltip = null;
+    }
+  });
+
   const messages = [];
-  const sessionId = 'sess_' + Math.random().toString(36).slice(2);
+  var _urlParams = new URLSearchParams(window.location.search || '');
+  var _urlSessId = (_urlParams.get('session_id') || '').trim();
+  const sessionId = _urlSessId || ('sess_' + Math.random().toString(36).slice(2));
+  const PROJECT_ID = '9abeb5c7-1854-4bac-b482-2cd2ab39f246';
+
+  function _getCiteAuthHeaders() {
+    try { var _a = localStorage.getItem('auth'); if (_a) { var _p = JSON.parse(_a); if (_p && _p.token) return { 'Authorization': 'Bearer ' + _p.token }; } } catch(_) {}
+    return {};
+  }
+
+  function openCitationDocument(documentId) {
+    if (!PROJECT_ID || !documentId) return;
+    fetch('/api/projects/' + PROJECT_ID + '/documents/' + documentId + '/download/', { headers: _getCiteAuthHeaders() })
+      .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.blob(); })
+      .then(function(blob) { var u = URL.createObjectURL(blob); window.open(u, '_blank'); setTimeout(function() { URL.revokeObjectURL(u); }, 60000); })
+      .catch(function(err) { console.error('Citation document open failed:', err); });
+  }
+
+  var _historyPreloaded = false;
+  (async function() {
+    if (!PROJECT_ID || !sessionId) return;
+    try {
+      var url = '/api/agent-orchestration/projects/' + PROJECT_ID + '/deployment/activity/?session_id=' + encodeURIComponent(sessionId) + '&limit=1';
+      var resp = await fetch(url, { credentials: 'include', headers: _getCiteAuthHeaders() });
+      if (!resp.ok) return;
+      var data = await resp.json().catch(function() { return null; });
+      if (!data || !Array.isArray(data.sessions) || !data.sessions.length) return;
+      var history = Array.isArray(data.sessions[0].conversation_history) ? data.sessions[0].conversation_history : [];
+      var recent = history.slice(-100);
+      if (!recent.length) return;
+      _historyPreloaded = true;
+      for (var i = 0; i < recent.length; i++) {
+        var m = recent[i];
+        if (!m || !m.role || typeof m.content !== 'string') continue;
+        appendMessage(m.role === 'user' ? 'user' : 'assistant', m.content, false, Array.isArray(m.citations) ? m.citations : undefined);
+        messages.push({ role: m.role, content: m.content });
+      }
+    } catch(_e) {}
+  })().then(function() {
+    if (!_historyPreloaded) {
+      appendMessage('assistant', INITIAL_GREETING);
+      messages.push({ role: 'assistant', content: INITIAL_GREETING });
+    }
+  });
   let currentExecutionId = null;
   let awaitingHumanInput = false;
 
@@ -219,14 +381,21 @@
   }
   inputEl.addEventListener('input', autoResize);
 
-  function appendMessage(role, text, isStreaming = false) {
+  function appendMessage(role, text, isStreaming = false, apiCitations) {
     const msg = document.createElement('div');
     msg.className = 'msg ' + (role === 'user' ? 'user' : 'assistant');
     const bubble = document.createElement('div');
     bubble.className = 'bubble';
     if (role === 'assistant' && !isStreaming) {
+      var cleanText = text;
+      var citations = [];
+      if (Array.isArray(apiCitations) && apiCitations.length > 0) { citations = apiCitations; }
+      else { var parsed = parseCitations(text); cleanText = parsed.cleanText; citations = parsed.citations; }
+      if (citations.length > 0) _chatCitations = citations;
       const markdownEl = document.createElement('markdown');
-      markdownEl.innerHTML = renderMarkdown(text);
+      var rendered = renderMarkdown(cleanText);
+      if (citations.length > 0) rendered = renderCitationChips(rendered, citations);
+      markdownEl.innerHTML = rendered;
       bubble.appendChild(markdownEl);
     } else {
       bubble.textContent = text;
@@ -252,6 +421,78 @@
   function hideThinkingIndicator() {
     const indicator = document.getElementById('thinking-indicator');
     if (indicator) indicator.remove();
+  }
+
+  var _activityPanel = null, _activityItems = null, _activityHeader = null, _activityStartTs = null;
+  var _activityIcons = { planning: '\uD83D\uDCCB', delegate_start: '\uD83E\uDD1D', delegate_plan: '\uD83D\uDCDD', tool_result: '\uD83D\uDD0D', delegate_done: '\u2705', synthesizing: '\u2699\uFE0F' };
+  function _ensureActivityPanel() {
+    if (_activityPanel) return;
+    _activityStartTs = Date.now();
+    _activityPanel = document.createElement('div');
+    _activityPanel.className = 'activity-panel';
+    _activityHeader = document.createElement('div');
+    _activityHeader.className = 'activity-header';
+    _activityHeader.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg><span>Processing\u2026</span>';
+    var panelRef = _activityPanel;
+    _activityHeader.addEventListener('click', function() { panelRef.classList.toggle('collapsed'); });
+    _activityItems = document.createElement('div');
+    _activityItems.className = 'activity-items';
+    _activityPanel.appendChild(_activityHeader);
+    _activityPanel.appendChild(_activityItems);
+    var thinkingEl = document.getElementById('thinking-indicator');
+    if (thinkingEl) { thinkingEl.parentNode.insertBefore(_activityPanel, thinkingEl); thinkingEl.remove(); }
+    else { messagesEl.appendChild(_activityPanel); }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function showActivityItem(data) {
+    _ensureActivityPanel();
+    var icon = _activityIcons[data.type] || '\u2022';
+    var desc = '';
+    switch (data.type) {
+      case 'planning': desc = '<b>' + (data.agent || '') + '</b> created a plan'; break;
+      case 'delegate_start': desc = '<b>' + (data.agent || '') + '</b> started \u2014 ' + (Array.isArray(data.tasks) ? data.tasks.length + ' task(s)' : ''); break;
+      case 'delegate_plan': desc = '<b>' + (data.agent || '') + '</b> created its plan'; break;
+      case 'tool_result': desc = '<b>' + (data.agent || '') + '</b> queried <i>' + (data.tool || '') + '</i> (' + (data.chars || 0) + ' chars)'; break;
+      case 'delegate_done': desc = '<b>' + (data.agent || '') + '</b> finished (' + (data.chars || 0) + ' chars)'; break;
+      case 'synthesizing': desc = '<b>' + (data.agent || '') + '</b> is synthesizing the final answer'; break;
+      default: desc = JSON.stringify(data);
+    }
+    var detail = '';
+    if ((data.type === 'planning' || data.type === 'delegate_plan') && data.content) { detail = data.content; }
+    else if (data.type === 'delegate_start' && Array.isArray(data.tasks) && data.tasks.length) {
+      detail = data.tasks.map(function(t, i) { return (i + 1) + '. ' + t; }).join('\n');
+    }
+    else if (data.type === 'tool_result' && data.content) { detail = data.content; }
+    var item = document.createElement('div');
+    item.className = 'activity-item' + (detail ? ' expandable' : '');
+    var bodyEl = document.createElement('span');
+    bodyEl.className = 'activity-item-body';
+    bodyEl.innerHTML = desc;
+    if (detail) {
+      var detailEl = document.createElement('div');
+      detailEl.className = 'activity-detail';
+      detailEl.textContent = detail;
+      bodyEl.appendChild(detailEl);
+      item.addEventListener('click', function() { item.classList.toggle('expanded'); });
+    }
+    item.innerHTML = '<span class="activity-item-icon">' + icon + '</span>';
+    item.appendChild(bodyEl);
+    _activityItems.appendChild(item);
+    _activityItems.scrollTop = _activityItems.scrollHeight;
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function collapseActivityPanel() {
+    if (!_activityPanel) return;
+    var elapsed = _activityStartTs ? Math.round((Date.now() - _activityStartTs) / 1000) : 0;
+    var hdr = _activityPanel.querySelector('.activity-header span');
+    if (hdr) hdr.textContent = 'Processed in ' + elapsed + 's \u2014 click to expand';
+    _activityPanel.classList.add('collapsed');
+  }
+
+  function resetActivityPanel() {
+    _activityPanel = null; _activityItems = null; _activityHeader = null; _activityStartTs = null;
   }
 
   function showHumanInputModal(title, message) {
@@ -345,6 +586,7 @@
             try {
               const data = JSON.parse(line.slice(6));
               if (data.type === 'content') {
+                collapseActivityPanel();
                 if (!thinkingHidden) {
                   hideThinkingIndicator();
                   thinkingHidden = true;
@@ -360,6 +602,14 @@
                 accumulatedContent += data.content;
                 markdownEl.innerHTML = renderMarkdown(accumulatedContent);
                 messagesEl.scrollTop = messagesEl.scrollHeight;
+              } else if (data.type === 'citations') {
+                if (markdownEl && Array.isArray(data.citations) && data.citations.length > 0) {
+                  _chatCitations = data.citations;
+                  markdownEl.innerHTML = renderCitationChips(renderMarkdown(accumulatedContent), data.citations);
+                  messagesEl.scrollTop = messagesEl.scrollHeight;
+                }
+              } else if (data.type === 'planning' || data.type === 'delegate_start' || data.type === 'delegate_plan' || data.type === 'tool_result' || data.type === 'delegate_done' || data.type === 'synthesizing') {
+                showActivityItem(data);
               } else if (data.type === 'awaiting_human_input') {
                 hideThinkingIndicator();
                 showHumanInputModal(data.title, data.last_conversation_message);
@@ -371,10 +621,23 @@
                 hideThinkingIndicator();
                 if (msg) msg.remove();
                 appendMessage('assistant', 'Error: ' + (data.error || 'Unexpected error'));
+                resetActivityPanel();
                 return;
               } else if (data.type === 'done') {
-                messages.push({ role: 'assistant', content: accumulatedContent });
+                collapseActivityPanel();
+                var parsed = parseCitations(accumulatedContent);
+                var cleanContent = parsed.cleanText;
+                var citations = [];
+                if (Array.isArray(data.citations) && data.citations.length > 0) { citations = data.citations; }
+                else if (_chatCitations.length > 0) { citations = _chatCitations; }
+                else { citations = parsed.citations; }
+                _chatCitations = citations;
+                if (markdownEl) {
+                  markdownEl.innerHTML = citations.length > 0 ? renderCitationChips(renderMarkdown(cleanContent), citations) : renderMarkdown(cleanContent);
+                }
+                messages.push({ role: 'assistant', content: cleanContent });
                 statusEl.textContent = '';
+                resetActivityPanel();
                 return;
               }
             } catch (e) { console.error('Parse error:', e); }
@@ -386,6 +649,7 @@
       hideThinkingIndicator();
       appendMessage('assistant', 'Sorry, there was a connection problem.');
       statusEl.textContent = '';
+      resetActivityPanel();
     } finally {
       if (!awaitingHumanInput) sendBtn.disabled = false;
     }
@@ -405,8 +669,10 @@
     if (e.key === 'Enter' && e.ctrlKey) { e.preventDefault(); submitHumanInput(); }
   });
 
-  appendMessage('assistant', INITIAL_GREETING);
-  messages.push({ role: 'assistant', content: INITIAL_GREETING });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { try { parent.postMessage({ type: 'chatbot_escape' }, '*'); } catch(_) {} }
+  });
+
 </script>
 </body>
 </html>
