@@ -22,6 +22,7 @@ class ClientConfig:
     provider: str
     model: str
     openai_api_key: str | None
+    openai_base_url: str | None
     anthropic_api_key: str | None
     conversation_log_dir: str
 
@@ -44,7 +45,7 @@ def load_config() -> ClientConfig:
         sys.exit(1)
 
     provider = os.environ.get("LLM_PROVIDER", "openai").lower()
-    model = os.environ.get("LLM_MODEL", "gpt-4o")
+    model = os.environ.get("LLM_MODEL", "gpt-5.3-chat-latest")
 
     mcp_server_command = os.environ.get("MCP_SERVER_COMMAND", "uv")
     raw_args = os.environ.get("MCP_SERVER_ARGS", "run,fairsharing-mcp")
@@ -61,6 +62,7 @@ def load_config() -> ClientConfig:
         sys.exit(1)
 
     openai_api_key = os.environ.get("OPENAI_API_KEY")
+    openai_base_url = os.environ.get("OPENAI_BASE_URL")
     anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
     conversation_log_dir = os.environ.get("CONVERSATION_LOG_DIR", "")
 
@@ -81,6 +83,7 @@ def load_config() -> ClientConfig:
         provider=provider,
         model=model,
         openai_api_key=openai_api_key,
+        openai_base_url=openai_base_url,
         anthropic_api_key=anthropic_api_key,
         conversation_log_dir=conversation_log_dir,
     )

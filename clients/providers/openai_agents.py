@@ -6,7 +6,8 @@ import os
 import sys
 from pathlib import Path
 
-from agents import Agent, Runner
+from openai import AsyncOpenAI
+from agents import Agent, Runner, set_default_openai_client
 from agents.mcp import MCPServerStdio, MCPServerStreamableHttp
 
 from ..base import BaseLLMProvider
@@ -282,6 +283,14 @@ class OpenAIAgentsProvider(BaseLLMProvider):
 
         # Enter the MCP server context manager to start the connection
         await self._mcp_server.__aenter__()
+
+        # Configure custom LLM endpoint if provided (e.g. Lagrange proxy)
+        if self.config.openai_base_url:
+            _openai_client = AsyncOpenAI(
+                api_key=self.config.openai_api_key,
+                base_url=self.config.openai_base_url,
+            )
+            set_default_openai_client(_openai_client)
 
         self._agent = Agent(
             name="FAIRsharing Assistant",
