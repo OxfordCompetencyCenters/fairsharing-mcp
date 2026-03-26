@@ -376,4 +376,4 @@ ruff format src/ tests/
 
 ## License
 
-MIT
+GNU GENERAL PUBLIC LICENSE
