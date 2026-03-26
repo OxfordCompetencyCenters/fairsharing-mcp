@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 from pathlib import Path
 
 from openai import AsyncOpenAI
-from agents import Agent, Runner, set_default_openai_client
+from agents import Agent, Runner, set_default_openai_client, set_tracing_disabled
 from agents.mcp import MCPServerStdio, MCPServerStreamableHttp
 
 from ..base import BaseLLMProvider
@@ -237,67 +238,90 @@ class OpenAIAgentsProvider(BaseLLMProvider):
 
     def __init__(self, config: ClientConfig) -> None:
         super().__init__(config)
-        self._mcp_server: MCPServerStdio | MCPServerStreamableHttp | None = None
         self._agent: Agent | None = None
         # Tracks the OpenAI Agents SDK conversation state for multi-turn
         self._input_list: list = []
+        # Lifecycle events for the persistent connection task
+        self._mcp_connected: asyncio.Event | None = None
+        self._mcp_shutdown: asyncio.Event | None = None
+        self._connection_task: asyncio.Task | None = None
+        self._setup_error: Exception | None = None
 
     async def setup(self) -> None:
-        if self.config.mcp_transport == "streamable-http":
-            # Connect to a remote MCP server over HTTP
-            self._mcp_server = MCPServerStreamableHttp(
-                params={"url": self.config.mcp_server_url},
-                client_session_timeout_seconds=120,
-            )
-        else:
-            # Default: launch MCP server as a local subprocess over STDIO
-            project_root = Path(__file__).resolve().parent.parent.parent
-            src_dir = str(project_root / "src")
+        self._mcp_connected = asyncio.Event()
+        self._mcp_shutdown = asyncio.Event()
+        self._setup_error = None
 
-            # Inherit the full parent environment so the subprocess has HOME,
-            # VIRTUAL_ENV, TMPDIR, etc.  Override only what we need.
-            subprocess_env = os.environ.copy()
-            subprocess_env["FAIRSHARING_API_KEY"] = self.config.fairsharing_api_key
-            subprocess_env["PYTHONPATH"] = src_dir
+        # Start a single persistent task that owns the full MCP server lifecycle.
+        # anyio binds cancel scopes to the creating task, so __aenter__ and
+        # __aexit__ must happen in the SAME task — splitting them across tasks
+        # (as run_coroutine_threadsafe does) causes "Attempted to exit cancel
+        # scope in a different task" errors.
+        loop = asyncio.get_running_loop()
+        self._connection_task = loop.create_task(self._run_mcp_connection())
 
-            # Local dev uses "uv run fairsharing-mcp" (the default).
-            # Everywhere else (Azure, Docker, etc.), run the MCP server as a
-            # Python module using the current interpreter so virtualenv packages
-            # and PYTHONPATH are available — no console script needed.
-            command = self.config.mcp_server_command
-            args = self.config.mcp_server_args
-            if command != "uv":
-                command = sys.executable
-                args = ["-m", "fairsharing_mcp.server"]
+        await self._mcp_connected.wait()
+        if self._setup_error:
+            raise self._setup_error
 
-            self._mcp_server = MCPServerStdio(
-                params={
-                    "command": command,
-                    "args": args,
-                    "env": subprocess_env,
-                },
-                # Some tools (compare_policies_by_country, analyze_country_landscape)
-                # make many sequential API calls; the default 5s timeout is too short.
-                client_session_timeout_seconds=120,
-            )
+    async def _run_mcp_connection(self) -> None:
+        """Single persistent task: enter MCP server, hold it open, exit cleanly."""
+        try:
+            if self.config.mcp_transport == "streamable-http":
+                mcp_server: MCPServerStdio | MCPServerStreamableHttp = MCPServerStreamableHttp(
+                    params={"url": self.config.mcp_server_url},
+                    client_session_timeout_seconds=120,
+                )
+            else:
+                project_root = Path(__file__).resolve().parent.parent.parent
+                src_dir = str(project_root / "src")
 
-        # Enter the MCP server context manager to start the connection
-        await self._mcp_server.__aenter__()
+                subprocess_env = os.environ.copy()
+                subprocess_env["FAIRSHARING_API_KEY"] = self.config.fairsharing_api_key
+                subprocess_env["PYTHONPATH"] = src_dir
 
-        # Configure custom LLM endpoint if provided (e.g. Lagrange proxy)
-        if self.config.openai_base_url:
-            _openai_client = AsyncOpenAI(
-                api_key=self.config.openai_api_key,
-                base_url=self.config.openai_base_url,
-            )
-            set_default_openai_client(_openai_client)
+                command = self.config.mcp_server_command
+                args = self.config.mcp_server_args
+                if command != "uv":
+                    command = sys.executable
+                    args = ["-m", "fairsharing_mcp.server"]
 
-        self._agent = Agent(
-            name="FAIRsharing Assistant",
-            instructions=SYSTEM_PROMPT,
-            model=self.config.model,
-            mcp_servers=[self._mcp_server],
-        )
+                mcp_server = MCPServerStdio(
+                    params={"command": command, "args": args, "env": subprocess_env},
+                    # Some tools make many sequential API calls; default 5s is too short.
+                    client_session_timeout_seconds=120,
+                )
+
+            async with mcp_server:
+                # Configure custom LLM endpoint if provided (e.g. Lagrange proxy).
+                # Tracing always targets OpenAI's platform — disable it when using
+                # a non-OpenAI endpoint to avoid spurious 401 errors in the logs.
+                if self.config.openai_base_url:
+                    _openai_client = AsyncOpenAI(
+                        api_key=self.config.openai_api_key,
+                        base_url=self.config.openai_base_url,
+                    )
+                    set_default_openai_client(_openai_client, use_for_tracing=False)
+                    set_tracing_disabled(True)
+
+                self._agent = Agent(
+                    name="FAIRsharing Assistant",
+                    instructions=SYSTEM_PROMPT,
+                    model=self.config.model,
+                    mcp_servers=[mcp_server],
+                )
+                assert self._mcp_connected is not None
+                self._mcp_connected.set()
+
+                # Hold the connection open until teardown() signals shutdown.
+                assert self._mcp_shutdown is not None
+                await self._mcp_shutdown.wait()
+                # Exiting `async with mcp_server:` here closes the connection
+                # cleanly within this same task.
+        except Exception as exc:
+            self._setup_error = exc
+            if self._mcp_connected and not self._mcp_connected.is_set():
+                self._mcp_connected.set()
 
     async def send_message(self, user_input: str, history: ConversationHistory) -> str:
         if self._agent is None:
@@ -322,8 +346,13 @@ class OpenAIAgentsProvider(BaseLLMProvider):
         self._input_list = []
 
     async def teardown(self) -> None:
-        if self._mcp_server is not None:
-            await self._mcp_server.__aexit__(None, None, None)
-            self._mcp_server = None
+        if self._mcp_shutdown is not None:
+            self._mcp_shutdown.set()
+        if self._connection_task is not None:
+            try:
+                await asyncio.wait_for(self._connection_task, timeout=10)
+            except (asyncio.TimeoutError, Exception):
+                pass
+            self._connection_task = None
         self._agent = None
         self._input_list = []
