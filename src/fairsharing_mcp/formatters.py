@@ -348,37 +348,37 @@ def format_record_detail(record: dict) -> str:
         lines.append(", ".join(tag_labels))
         lines.append("")
 
-    # Relationships
+    # Relationships.
+    # assoc_limit is resolved up front, NOT inside the outgoing branch: a record with
+    # zero outgoing but some incoming associations used to raise UnboundLocalError here.
+    assoc_limit = config.get_display_limit("associations")
     associations = record.get("recordAssociations", [])
-    if associations:
-        lines.append("## Related Records (Outgoing)")
-        assoc_limit = config.get_display_limit("associations")
-        to_show = associations[:assoc_limit] if assoc_limit else associations
+    reverse_associations = record.get("reverseRecordAssociations", [])
+
+    def _render_associations(assocs: list, key: str, heading: str) -> None:
+        lines.append(heading)
+        to_show = assocs[:assoc_limit] if assoc_limit else assocs
         for assoc in to_show:
-            linked = assoc.get("linkedRecord", {})
+            linked = assoc.get(key, {})
             label = assoc.get("recordAssocLabel", "related to")
             name = linked.get("name", "Unknown")
             registry = linked.get("registry", "")
             rec_id = linked.get("id", "")
             lines.append(f"- **{label}** {name} ({registry}, ID: {rec_id})")
-        if assoc_limit and len(associations) > assoc_limit:
-            lines.append(f"_(and {len(associations) - assoc_limit} more)_")
+        if assoc_limit and len(assocs) > assoc_limit:
+            lines.append(
+                f"_Showing {assoc_limit} of {len(assocs)}. "
+                "Call `fairsharing_list_associations` for the complete, paginated list._"
+            )
         lines.append("")
 
-    reverse_associations = record.get("reverseRecordAssociations", [])
+    if associations:
+        _render_associations(associations, "linkedRecord", "## Related Records (Outgoing)")
+
     if reverse_associations:
-        lines.append("## Related Records (Incoming)")
-        to_show = reverse_associations[:assoc_limit] if assoc_limit else reverse_associations
-        for assoc in to_show:
-            linked = assoc.get("fairsharingRecord", {})
-            label = assoc.get("recordAssocLabel", "related to")
-            name = linked.get("name", "Unknown")
-            registry = linked.get("registry", "")
-            rec_id = linked.get("id", "")
-            lines.append(f"- **{label}** {name} ({registry}, ID: {rec_id})")
-        if assoc_limit and len(reverse_associations) > assoc_limit:
-            lines.append(f"_(and {len(reverse_associations) - assoc_limit} more)_")
-        lines.append("")
+        _render_associations(
+            reverse_associations, "fairsharingRecord", "## Related Records (Incoming)"
+        )
 
     return "\n".join(lines)
 

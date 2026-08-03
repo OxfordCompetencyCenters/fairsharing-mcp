@@ -76,6 +76,39 @@ async def get_record(
 
         if output_format == "json":
             _doi = record.get("doi")
+
+            # Associations used to be omitted from JSON entirely, which made the
+            # machine-readable format strictly less informative than the markdown one.
+            # They are included here but capped, because a single record can carry
+            # 1,000+ associations; fairsharing_list_associations pages through them all.
+            assoc_cap = config.get_display_limit("json_associations")
+            raw_out = record.get("recordAssociations") or []
+            raw_in = record.get("reverseRecordAssociations") or []
+
+            def _assoc_json(assocs: list, key: str) -> list[dict]:
+                capped = assocs[:assoc_cap] if assoc_cap else assocs
+                rows = []
+                for assoc in capped:
+                    linked = assoc.get(key) or {}
+                    linked_doi = linked.get("doi")
+                    rows.append(
+                        {
+                            "id": linked.get("id"),
+                            "name": linked.get("name"),
+                            "abbreviation": linked.get("abbreviation", ""),
+                            "registry": linked.get("registry"),
+                            "type": linked.get("type"),
+                            "status": linked.get("status", ""),
+                            "fairsharing_url": build_fairsharing_url(linked_doi),
+                            "label": assoc.get("recordAssocLabel", "related_to"),
+                        }
+                    )
+                return rows
+
+            assoc_truncated = bool(assoc_cap) and (
+                len(raw_out) > assoc_cap or len(raw_in) > assoc_cap
+            )
+
             # Return the raw API record data as structured JSON
             return json.dumps(
                 {
@@ -119,6 +152,19 @@ async def get_record(
                         }
                         for p in record.get("publications", [])
                     ],
+                    "association_counts": {
+                        "outgoing": len(raw_out),
+                        "incoming": len(raw_in),
+                    },
+                    "record_associations": _assoc_json(raw_out, "linkedRecord"),
+                    "reverse_record_associations": _assoc_json(raw_in, "fairsharingRecord"),
+                    "associations_truncated": assoc_truncated,
+                    "associations_note": (
+                        f"Association lists capped at {assoc_cap} per direction. "
+                        "Call fairsharing_list_associations for the complete, paginated set."
+                        if assoc_truncated
+                        else "Complete: all associations for this record are included above."
+                    ),
                 },
                 indent=2,
             )

@@ -83,11 +83,11 @@ query GetRecord($id: ID!) {
         userDefinedTags { id label }
         objectTypes { label }
         recordAssociations {
-            linkedRecord { id name registry type }
+            linkedRecord { id name abbreviation registry type status doi }
             recordAssocLabel
         }
         reverseRecordAssociations {
-            fairsharingRecord { id name registry type }
+            fairsharingRecord { id name abbreviation registry type status doi }
             recordAssocLabel
         }
     }

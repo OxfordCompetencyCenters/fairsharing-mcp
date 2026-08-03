@@ -8,9 +8,10 @@ from typing import Annotated
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from fairsharing_mcp import app
+from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.constants import EDGE_COLOR_TO_RELATIONSHIP
+from fairsharing_mcp.formatters import build_fairsharing_url
 from fairsharing_mcp.queries import (
     GET_GRAPH_QUERY,
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
@@ -72,34 +73,54 @@ async def analyze_record_ecosystem(
         incoming = record.get("reverseRecordAssociations", [])
 
         if output_format == "json":
-            by_relationship: dict[str, list] = {}
-            by_registry: dict[str, list] = {}
-            for a in outgoing:
-                label = a.get("recordAssocLabel", "related_to")
-                lr = a.get("linkedRecord", {})
-                entry = {
-                    "id": lr.get("id"),
-                    "name": lr.get("name", "Unknown"),
-                    "abbreviation": lr.get("abbreviation", ""),
-                    "registry": lr.get("registry", "Unknown"),
-                    "status": lr.get("status", ""),
-                    "direction": "outgoing",
+            # Outgoing and incoming are grouped SEPARATELY. They used to share one
+            # by_relationship dict, so a label present in both directions produced a
+            # merged list and any caller counting entries got a wrong answer.
+            group_cap = config.get_display_limit("ecosystem_group")
+
+            def _entry(linked: dict, direction: str) -> dict:
+                return {
+                    "id": linked.get("id"),
+                    "name": linked.get("name", "Unknown"),
+                    "abbreviation": linked.get("abbreviation", ""),
+                    "registry": linked.get("registry", "Unknown"),
+                    "status": linked.get("status", ""),
+                    "fairsharing_url": build_fairsharing_url(linked.get("doi")),
+                    "direction": direction,
                 }
-                by_relationship.setdefault(label, []).append(entry)
-                by_registry.setdefault(lr.get("registry", "Unknown"), []).append(entry)
-            for a in incoming:
-                label = a.get("recordAssocLabel", "related_to")
-                lr = a.get("fairsharingRecord", {})
-                entry = {
-                    "id": lr.get("id"),
-                    "name": lr.get("name", "Unknown"),
-                    "abbreviation": lr.get("abbreviation", ""),
-                    "registry": lr.get("registry", "Unknown"),
-                    "status": lr.get("status", ""),
-                    "direction": "incoming",
+
+            def _grouped(assocs: list, key: str, direction: str) -> dict:
+                """Group by relationship label, capping the record list but never the count."""
+                buckets: dict[str, list] = {}
+                registries: dict[str, int] = {}
+                for a in assocs:
+                    label = a.get("recordAssocLabel", "related_to")
+                    linked = a.get(key, {})
+                    buckets.setdefault(label, []).append(_entry(linked, direction))
+                    reg = linked.get("registry", "Unknown")
+                    registries[reg] = registries.get(reg, 0) + 1
+                return {
+                    "total": len(assocs),
+                    "label_counts": {k: len(v) for k, v in buckets.items()},
+                    "registry_counts": registries,
+                    "by_relationship": {
+                        k: {
+                            "count": len(v),
+                            "truncated": bool(group_cap) and len(v) > group_cap,
+                            "records": v[:group_cap] if group_cap else v,
+                        }
+                        for k, v in buckets.items()
+                    },
                 }
-                by_relationship.setdefault(label, []).append(entry)
-                by_registry.setdefault(lr.get("registry", "Unknown"), []).append(entry)
+
+            out_grouped = _grouped(outgoing, "linkedRecord", "outgoing")
+            in_grouped = _grouped(incoming, "fairsharingRecord", "incoming")
+            any_truncated = any(
+                g["truncated"]
+                for side in (out_grouped, in_grouped)
+                for g in side["by_relationship"].values()
+            )
+
             return json.dumps(
                 {
                     "record_id": record_id,
@@ -111,11 +132,24 @@ async def analyze_record_ecosystem(
                     "total_relationships": len(outgoing) + len(incoming),
                     "total_outgoing": len(outgoing),
                     "total_incoming": len(incoming),
-                    "by_relationship": by_relationship,
-                    "by_registry": by_registry,
+                    "outgoing": out_grouped,
+                    "incoming": in_grouped,
+                    "records_truncated": any_truncated,
+                    "note": (
+                        f"Record lists capped at {group_cap} per relationship label; "
+                        "`count` and `label_counts` are always exact. Call "
+                        "fairsharing_list_associations for the complete, paginated set."
+                        if any_truncated
+                        else "Complete: no record list was capped."
+                    ),
                 },
                 indent=2,
             )
+
+        # Per (label, registry) group cap. Was hardcoded at 15, which no environment
+        # variable could reach; now configurable via FAIRSHARING_DISPLAY_MAX_ECOSYSTEM_GROUP
+        # (0 = show all).
+        md_group_cap = config.get_display_limit("ecosystem_group")
 
         lines = [
             f"# Ecosystem Analysis: {name}" + (f" ({abbrev})" if abbrev else ""),
@@ -159,7 +193,7 @@ async def analyze_record_ecosystem(
                 for reg in sorted(by_label[label]):
                     items = by_label[label][reg]
                     lines.append(f"**{reg}** ({len(items)}):")
-                    for item in items[:15]:
+                    for item in items[:md_group_cap] if md_group_cap else items:
                         item_name = item.get("name", "Unknown")
                         item_abbrev = item.get("abbreviation", "")
                         item_status = item.get("status", "")
@@ -170,8 +204,11 @@ async def analyze_record_ecosystem(
                         if item_status and item_status != "ready":
                             entry += f" _{item_status}_"
                         lines.append(entry)
-                    if len(items) > 15:
-                        lines.append(f"  _(...and {len(items) - 15} more)_")
+                    if md_group_cap and len(items) > md_group_cap:
+                        lines.append(
+                            f"  _Showing {md_group_cap} of {len(items)}. Call "
+                            "`fairsharing_list_associations` for the complete list._"
+                        )
                 lines.append("")
 
         if incoming:
@@ -192,7 +229,7 @@ async def analyze_record_ecosystem(
                 for reg in sorted(by_label_in[label]):
                     items = by_label_in[label][reg]
                     lines.append(f"**{reg}** ({len(items)}):")
-                    for item in items[:15]:
+                    for item in items[:md_group_cap] if md_group_cap else items:
                         item_name = item.get("name", "Unknown")
                         item_abbrev = item.get("abbreviation", "")
                         item_status = item.get("status", "")
@@ -203,8 +240,11 @@ async def analyze_record_ecosystem(
                         if item_status and item_status != "ready":
                             entry += f" _{item_status}_"
                         lines.append(entry)
-                    if len(items) > 15:
-                        lines.append(f"  _(...and {len(items) - 15} more)_")
+                    if md_group_cap and len(items) > md_group_cap:
+                        lines.append(
+                            f"  _Showing {md_group_cap} of {len(items)}. Call "
+                            "`fairsharing_list_associations` for the complete list._"
+                        )
                 lines.append("")
 
         # --- Summary statistics ---

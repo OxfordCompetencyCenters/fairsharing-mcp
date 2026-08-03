@@ -127,10 +127,13 @@ Add to `.vscode/settings.json`:
 | `FAIRSHARING_MAX_SCAN` | No | Max records to scan for date filtering (default: 2000, max: 50000) |
 | `FAIRSHARING_MAX_PER_PAGE` | No | Max results per page (default: 50, API cap: 50) |
 | `FAIRSHARING_TRUNCATION_WARNING` | No | Show truncation warnings (default: true, set to 0 to disable) |
+| `FAIRSHARING_DISPLAY_MAX_ASSOCIATIONS` | No | Associations shown per direction in `get_record` markdown (default: 20, 0 = all) |
+| `FAIRSHARING_DISPLAY_MAX_JSON_ASSOCIATIONS` | No | Associations embedded in `get_record` JSON (default: 100, 0 = all; counts always exact) |
+| `FAIRSHARING_DISPLAY_MAX_ECOSYSTEM_GROUP` | No | Records per relationship group in `analyze_record_ecosystem` (default: 15, 0 = all) |
 
 See `.env.example` for the full list including display limits.
 
-## Tools (96 total)
+## Tools (97 total)
 
 All tools are prefixed with `fairsharing_` and support both `markdown` (default) and `json` output formats via the `output_format` parameter.
 
@@ -355,7 +358,7 @@ See `CLAUDE.md` for detailed architecture documentation.
 ## Development
 
 ```bash
-# Run all tests (305 tests)
+# Run all tests (318 tests)
 python -m pytest tests/test_server.py
 
 # Run specific tests

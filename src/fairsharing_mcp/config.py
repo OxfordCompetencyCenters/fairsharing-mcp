@@ -70,6 +70,14 @@ def get_display_limit(key: str) -> int:
         "children": 30,
         "recommended": 30,
         "description_chars": 300,
+        # Cap on association entries embedded in JSON output. Machine-readable
+        # consumers tolerate more than a rendered list, but a record can carry
+        # 1,000+ associations, so this stays bounded. Use
+        # fairsharing_list_associations to page through the complete set.
+        "json_associations": 100,
+        # Per (label, registry) group cap in analyze_record_ecosystem. Was a
+        # hardcoded 15, which no environment variable could reach.
+        "ecosystem_group": 15,
     }
     default = defaults.get(key, 20)
     max_val = 100_000 if key == "description_chars" else 1000

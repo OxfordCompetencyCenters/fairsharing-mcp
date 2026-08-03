@@ -1,4 +1,5 @@
 import json
+import os
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -11,7 +12,7 @@ from fairsharing_mcp.constants import (
     RELATIONSHIP_INFLUENCE_WEIGHTS,
     RELATIONSHIP_WEIGHTS,
 )
-from fairsharing_mcp.formatters import build_fairsharing_url
+from fairsharing_mcp.formatters import build_fairsharing_url, format_record_detail
 from fairsharing_mcp.graph_utils import build_label_overrides, merge_graphs, parse_graph
 from fairsharing_mcp.helpers import build_advanced_search_where, matches_date_range
 from fairsharing_mcp.tools.comparison import (
@@ -32,7 +33,11 @@ from fairsharing_mcp.tools.discovery import (
     suggest_graph_starting_points,
     suggest_workflow,
 )
-from fairsharing_mcp.tools.graph import detect_circular_dependencies, find_record_connections
+from fairsharing_mcp.tools.graph import (
+    analyze_record_ecosystem,
+    detect_circular_dependencies,
+    find_record_connections,
+)
 from fairsharing_mcp.tools.graph_analysis import (
     analyze_graph_comprehensive,
     analyze_path_criticality,
@@ -8506,6 +8511,182 @@ class TestListAssociations(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(payload["total_count"], 0)
         self.assertEqual(payload["total_pages"], 1)
         self.assertFalse(payload["has_next_page"])
+
+
+class TestGetRecordJsonAssociations(unittest.IsolatedAsyncioTestCase):
+    """get_record's JSON mode used to omit associations entirely, making it strictly
+    less informative than the markdown mode it was meant to be an escape hatch from."""
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_json_includes_associations(self, mock_get_client):
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = _assoc_record(n_out=3, n_in=2)
+
+        payload = json.loads(await get_record(7456, output_format="json"))
+        self.assertEqual(len(payload["record_associations"]), 3)
+        self.assertEqual(len(payload["reverse_record_associations"]), 2)
+        self.assertEqual(payload["association_counts"], {"outgoing": 3, "incoming": 2})
+        self.assertFalse(payload["associations_truncated"])
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_json_labels_and_urls_present(self, mock_get_client):
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = _assoc_record(n_out=1)
+
+        entry = json.loads(await get_record(7456, output_format="json"))["record_associations"][0]
+        self.assertEqual(entry["label"], "has_associated_metric")
+        self.assertEqual(entry["fairsharing_url"], "https://fairsharing.org/FAIRsharing.out0")
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_json_caps_and_flags_large_lists(self, mock_get_client):
+        """Counts stay exact even when the embedded lists are capped."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = _assoc_record(n_out=250)
+
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_JSON_ASSOCIATIONS": "100"}):
+            payload = json.loads(await get_record(7456, output_format="json"))
+        self.assertEqual(len(payload["record_associations"]), 100)
+        self.assertEqual(payload["association_counts"]["outgoing"], 250)
+        self.assertTrue(payload["associations_truncated"])
+        self.assertIn("fairsharing_list_associations", payload["associations_note"])
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_json_uncapped_when_limit_zero(self, mock_get_client):
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = _assoc_record(n_out=250)
+
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_JSON_ASSOCIATIONS": "0"}):
+            payload = json.loads(await get_record(7456, output_format="json"))
+        self.assertEqual(len(payload["record_associations"]), 250)
+        self.assertFalse(payload["associations_truncated"])
+
+
+class TestFormatRecordDetailAssociations(unittest.TestCase):
+    """Regression cover for the association block in format_record_detail."""
+
+    @staticmethod
+    def _record(n_out, n_in):
+        return {
+            "id": "1",
+            "name": "R",
+            "registry": "Database",
+            "type": "repository",
+            "status": "ready",
+            "recordAssociations": [
+                {
+                    "linkedRecord": {"id": str(100 + i), "name": f"Out{i}", "registry": "Standard"},
+                    "recordAssocLabel": "implements",
+                }
+                for i in range(n_out)
+            ],
+            "reverseRecordAssociations": [
+                {
+                    "fairsharingRecord": {
+                        "id": str(200 + i),
+                        "name": f"In{i}",
+                        "registry": "Policy",
+                    },
+                    "recordAssocLabel": "recommends",
+                }
+                for i in range(n_in)
+            ],
+        }
+
+    def test_incoming_only_does_not_crash(self):
+        """Zero outgoing plus some incoming raised UnboundLocalError: assoc_limit was
+        bound inside the outgoing branch but read by the incoming one. Live records
+        2000 and 3000 have exactly this shape."""
+        out = format_record_detail(self._record(0, 2))
+        self.assertIn("Related Records (Incoming)", out)
+        self.assertNotIn("Related Records (Outgoing)", out)
+
+    def test_outgoing_only_still_works(self):
+        out = format_record_detail(self._record(2, 0))
+        self.assertIn("Related Records (Outgoing)", out)
+        self.assertNotIn("Related Records (Incoming)", out)
+
+    def test_no_associations_renders_neither_section(self):
+        out = format_record_detail(self._record(0, 0))
+        self.assertNotIn("Related Records", out)
+
+    def test_truncation_notice_states_counts_and_remedy(self):
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_ASSOCIATIONS": "5"}):
+            out = format_record_detail(self._record(30, 0))
+        self.assertIn("Showing 5 of 30", out)
+        self.assertIn("fairsharing_list_associations", out)
+
+    def test_no_notice_when_nothing_is_hidden(self):
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_ASSOCIATIONS": "50"}):
+            out = format_record_detail(self._record(3, 0))
+        self.assertNotIn("Showing", out)
+
+
+class TestEcosystemDirectionSeparation(unittest.IsolatedAsyncioTestCase):
+    """analyze_record_ecosystem merged both directions into one by_relationship dict,
+    and emitted every association with no cap (461 KB on record 6225)."""
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_directions_are_separate(self, mock_get_client):
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        # Same label on both sides — the case that produced a silently merged list.
+        mock_client.query.return_value = _assoc_record(
+            n_out=10, n_in=4, out_label="profiles", in_label="profiles"
+        )
+
+        payload = json.loads(await analyze_record_ecosystem(1, output_format="json"))
+        self.assertEqual(payload["outgoing"]["label_counts"]["profiles"], 10)
+        self.assertEqual(payload["incoming"]["label_counts"]["profiles"], 4)
+        self.assertEqual(payload["outgoing"]["by_relationship"]["profiles"]["count"], 10)
+        self.assertEqual(payload["incoming"]["by_relationship"]["profiles"]["count"], 4)
+        self.assertEqual(payload["total_outgoing"], 10)
+        self.assertEqual(payload["total_incoming"], 4)
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_counts_exact_while_record_lists_capped(self, mock_get_client):
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = _assoc_record(n_out=1042, out_label="collects")
+
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_ECOSYSTEM_GROUP": "15"}):
+            payload = json.loads(await analyze_record_ecosystem(6225, output_format="json"))
+        group = payload["outgoing"]["by_relationship"]["collects"]
+        self.assertEqual(group["count"], 1042, "count must never be capped")
+        self.assertEqual(len(group["records"]), 15)
+        self.assertTrue(group["truncated"])
+        self.assertTrue(payload["records_truncated"])
+        self.assertIn("fairsharing_list_associations", payload["note"])
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_registry_counts_per_direction(self, mock_get_client):
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = _assoc_record(n_out=3, n_in=2)
+
+        payload = json.loads(await analyze_record_ecosystem(1, output_format="json"))
+        self.assertEqual(payload["outgoing"]["registry_counts"], {"Standard": 3})
+        self.assertEqual(payload["incoming"]["registry_counts"], {"Database": 2})
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_markdown_group_cap_is_configurable(self, mock_get_client):
+        """The cap was a hardcoded 15 that no environment variable could reach."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = _assoc_record(n_out=40, out_label="collects")
+
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_ECOSYSTEM_GROUP": "5"}):
+            tight = await analyze_record_ecosystem(1)
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_ECOSYSTEM_GROUP": "0"}):
+            full = await analyze_record_ecosystem(1)
+
+        self.assertIn("Showing 5 of 40", tight)
+        self.assertIn("fairsharing_list_associations", tight)
+        self.assertNotIn("Showing", full)
+        self.assertGreater(len(full), len(tight))
 
 
 if __name__ == "__main__":
