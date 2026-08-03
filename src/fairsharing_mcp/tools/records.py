@@ -125,11 +125,247 @@ async def get_record(
 
         out = format_record_detail(record)
         if config.get_truncation_warning():
-            out += "\n\n_Display of nested lists (e.g. associations, subjects) may be truncated._"
+            n_out = len(record.get("recordAssociations") or [])
+            n_in = len(record.get("reverseRecordAssociations") or [])
+            shown = config.get_display_limit("associations")
+            note = "\n\n_Nested lists (associations, subjects, publications) are truncated for display."
+            if shown and (n_out > shown or n_in > shown):
+                note += (
+                    f" This record has {n_out} outgoing and {n_in} incoming associations;"
+                    f" at most {shown} of each are shown above."
+                    " Call `fairsharing_list_associations` to enumerate them all."
+                )
+            note += "_"
+            out += note
         return out
 
     except FAIRsharingError as e:
         return f"Error fetching record: {e}"
+
+
+@app.mcp.tool(
+    name="fairsharing_list_associations",
+    annotations=ToolAnnotations(
+        readOnlyHint=True,
+        idempotentHint=True,
+        openWorldHint=True,
+    ),
+)
+async def list_associations(
+    record_id: Annotated[int, Field(ge=1, description="FAIRsharing record ID")],
+    direction: Annotated[
+        str,
+        Field(
+            default="outgoing",
+            pattern="^(outgoing|incoming|both)$",
+            description="Which associations to list: 'outgoing', 'incoming', or 'both'",
+        ),
+    ] = "outgoing",
+    label: Annotated[
+        list[str] | None,
+        Field(
+            default=None,
+            description="Filter by relationship label, e.g. ['has_associated_metric', 'implements']",
+        ),
+    ] = None,
+    registry: Annotated[
+        list[str] | None,
+        Field(default=None, description="Filter by the linked record's registry"),
+    ] = None,
+    page: Annotated[int, Field(default=1, ge=1, description="Page number")] = 1,
+    per_page: Annotated[
+        int, Field(default=50, ge=1, le=200, description="Results per page (max 200)")
+    ] = 50,
+    output_format: Annotated[
+        str,
+        Field(
+            default="markdown",
+            pattern="^(markdown|json)$",
+            description="Output format: 'markdown' or 'json'",
+        ),
+    ] = "markdown",
+) -> str:
+    """List a record's associations completely, with exact labels and pagination.
+
+    Use this when you need EVERY association for a record rather than a preview.
+    `fairsharing_get_record` truncates its relationship lists for display, and the
+    graph tools infer relationship types from edge colours, which cannot distinguish
+    every label. This tool paginates over the authoritative `recordAssocLabel` values,
+    so nothing is silently dropped and nothing is mislabelled.
+
+    The response always reports `available_labels` — the full label breakdown for the
+    chosen direction, computed before any filtering — so you can see everything that
+    exists even while viewing a single page. Page through until `has_next_page` is
+    false to enumerate the complete set.
+
+    Args:
+        record_id: The FAIRsharing record ID (integer)
+        direction: "outgoing" (this record points to others), "incoming" (others point
+            to this record), or "both". Outgoing and incoming are reported separately
+            and never merged.
+        label: Optional relationship-label filter, e.g. ["has_associated_metric"].
+            Valid labels: implements, accepts, outputs, related_to, shares_code_with,
+            shares_data_with, profiles, extends, deprecates, collects, recommends,
+            part_of, measures_principle, has_associated_metric.
+        registry: Optional filter on the linked record's registry (Standard, Database,
+            Policy, Collection, FAIRassist)
+        page: Page number (default 1)
+        per_page: Results per page (default 50, max 200)
+        output_format: "markdown" (default) or "json" for structured output
+
+    Returns:
+        A complete, paginated list of associations with labels, IDs and FAIRsharing URLs.
+    """
+    try:
+        record_id = validate_record_id(record_id)
+    except ValueError as e:
+        return f"Validation error: {e}"
+
+    client = app.get_client()
+
+    try:
+        data = await client.query(GET_RECORD_WITH_ASSOCIATIONS_QUERY, {"id": record_id})
+        record = data.get("fairsharingRecord")
+
+        if not record:
+            return f"No record found with ID {record_id}."
+
+        def _entries(assocs: list, key: str, direction_label: str) -> list[dict]:
+            rows = []
+            for assoc in assocs or []:
+                linked = assoc.get(key) or {}
+                linked_doi = linked.get("doi")
+                rows.append(
+                    {
+                        "id": linked.get("id"),
+                        "name": linked.get("name", "Unknown"),
+                        "abbreviation": linked.get("abbreviation", ""),
+                        "registry": linked.get("registry", "Unknown"),
+                        "type": linked.get("type", ""),
+                        "status": linked.get("status", ""),
+                        "doi": linked_doi,
+                        "fairsharing_url": build_fairsharing_url(linked_doi),
+                        "label": assoc.get("recordAssocLabel", "related_to"),
+                        "direction": direction_label,
+                    }
+                )
+            return rows
+
+        selected: list[dict] = []
+        if direction in ("outgoing", "both"):
+            selected += _entries(record.get("recordAssociations"), "linkedRecord", "outgoing")
+        if direction in ("incoming", "both"):
+            selected += _entries(
+                record.get("reverseRecordAssociations"), "fairsharingRecord", "incoming"
+            )
+
+        # Breakdown over the unfiltered selection, so a caller on page 1 can still see
+        # everything that exists. Reported per direction to avoid conflating the two.
+        available_labels: dict[str, dict[str, int]] = {}
+        for entry in selected:
+            available_labels.setdefault(entry["direction"], {})
+            bucket = available_labels[entry["direction"]]
+            bucket[entry["label"]] = bucket.get(entry["label"], 0) + 1
+
+        filtered = selected
+        if label:
+            wanted = {ll.lower() for ll in label}
+            filtered = [e for e in filtered if str(e["label"]).lower() in wanted]
+        if registry:
+            wanted_reg = {r.lower() for r in registry}
+            filtered = [e for e in filtered if str(e["registry"]).lower() in wanted_reg]
+
+        total_count = len(filtered)
+        total_pages = max(1, (total_count + per_page - 1) // per_page)
+        start = (page - 1) * per_page
+        page_items = filtered[start : start + per_page]
+        has_next = page < total_pages
+
+        name = record.get("name", "Unknown")
+
+        if output_format == "json":
+            return json.dumps(
+                {
+                    "record_id": record_id,
+                    "name": name,
+                    "registry": record.get("registry"),
+                    "direction": direction,
+                    "filters": {"label": label, "registry": registry},
+                    "available_labels": available_labels,
+                    "total_outgoing": len(record.get("recordAssociations") or []),
+                    "total_incoming": len(record.get("reverseRecordAssociations") or []),
+                    "total_count": total_count,
+                    "page": page,
+                    "per_page": per_page,
+                    "total_pages": total_pages,
+                    "has_next_page": has_next,
+                    "returned": len(page_items),
+                    "associations": page_items,
+                },
+                indent=2,
+            )
+
+        lines = [
+            f"# Associations: {name} (ID: {record_id})",
+            "",
+            f"**Total outgoing:** {len(record.get('recordAssociations') or [])} | "
+            f"**Total incoming:** {len(record.get('reverseRecordAssociations') or [])}",
+            "",
+        ]
+
+        for dir_name in ("outgoing", "incoming"):
+            if dir_name in available_labels:
+                breakdown = ", ".join(
+                    f"{k}={v}"
+                    for k, v in sorted(available_labels[dir_name].items(), key=lambda x: -x[1])
+                )
+                lines.append(f"**All {dir_name} labels:** {breakdown}")
+        lines.append("")
+
+        if label or registry:
+            applied = []
+            if label:
+                applied.append(f"label={label}")
+            if registry:
+                applied.append(f"registry={registry}")
+            lines.append(f"_Filtered by {', '.join(applied)} → {total_count} matching._")
+            lines.append("")
+
+        if not page_items:
+            lines.append("_No associations match on this page._")
+            return "\n".join(lines)
+
+        lines.append(f"## Results (page {page} of {total_pages})")
+        lines.append("")
+        lines.append("| # | Relationship | Record | Registry | Type | Status | ID |")
+        lines.append("|---|---|---|---|---|---|---|")
+        for i, e in enumerate(page_items, start=start + 1):
+            display = e["name"]
+            if e["abbreviation"]:
+                display = f"{display} ({e['abbreviation']})"
+            display = escape_md_table(display)
+            if e["fairsharing_url"]:
+                display = f"[{display}]({e['fairsharing_url']})"
+            arrow = "→" if e["direction"] == "outgoing" else "←"
+            lines.append(
+                f"| {i} | {arrow} {escape_md_table(str(e['label']))} | {display} | "
+                f"{escape_md_table(str(e['registry']))} | {escape_md_table(str(e['type']))} | "
+                f"{escape_md_table(str(e['status']))} | {e['id']} |"
+            )
+        lines.append("")
+        lines.append(
+            f"_Showing {len(page_items)} of {total_count} "
+            f"(page {page}/{total_pages})._"
+            + (
+                f" Call again with page={page + 1} for the rest."
+                if has_next
+                else " This is the last page — the list is complete."
+            )
+        )
+        return "\n".join(lines)
+
+    except FAIRsharingError as e:
+        return f"Error fetching associations: {e}"
 
 
 @app.mcp.tool(

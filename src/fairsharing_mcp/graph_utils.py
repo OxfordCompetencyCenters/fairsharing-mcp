@@ -38,7 +38,45 @@ class ParsedGraph:
     name: str = "Unknown"
 
 
-def parse_graph(graph_data) -> ParsedGraph:
+def build_label_overrides(record: dict, record_id: int | str) -> dict[tuple[str, str], str]:
+    """Build exact (source, target) → relationship label pairs from a record's associations.
+
+    The graph payload only carries edge *colors*, and color is not a faithful proxy for
+    the relationship label — "brown" covers both shares_data_with and part_of, and
+    part_of / shares_code_with are not reachable from color at all (see
+    constants.AMBIGUOUS_EDGE_COLORS and COLOR_UNREACHABLE_LABELS). Where a caller has
+    already fetched `recordAssociations`, those labels are authoritative and should win.
+
+    Args:
+        record: A record dict containing recordAssociations / reverseRecordAssociations.
+        record_id: The record the associations belong to (the edge endpoint they share).
+
+    Returns:
+        Mapping of (source_key, target_key) → label, suitable for parse_graph(overrides=).
+    """
+    src = str(record_id)
+    overrides: dict[tuple[str, str], str] = {}
+
+    for assoc in record.get("recordAssociations") or []:
+        linked = assoc.get("linkedRecord") or {}
+        target = linked.get("id")
+        label = assoc.get("recordAssocLabel")
+        if target is not None and label:
+            overrides[(src, str(target))] = label
+
+    for assoc in record.get("reverseRecordAssociations") or []:
+        linked = assoc.get("fairsharingRecord") or {}
+        source = linked.get("id")
+        label = assoc.get("recordAssocLabel")
+        if source is not None and label:
+            overrides[(str(source), src)] = label
+
+    return overrides
+
+
+def parse_graph(
+    graph_data, label_overrides: dict[tuple[str, str], str] | None = None
+) -> ParsedGraph:
     """Parse raw FAIRsharing graph JSON into indexed structures.
 
     Handles both JSON string and dict input. Builds undirected adjacency,
@@ -46,6 +84,8 @@ def parse_graph(graph_data) -> ParsedGraph:
 
     Args:
         graph_data: Raw graph data (JSON string or dict) from GET_GRAPH_QUERY.
+        label_overrides: Optional exact (source, target) → label mapping that takes
+            precedence over color inference. Build it with build_label_overrides().
 
     Returns:
         A ParsedGraph with all adjacency structures populated.
@@ -82,8 +122,11 @@ def parse_graph(graph_data) -> ParsedGraph:
 
     for e in raw_edges:
         s, t = e["source"], e["target"]
-        color = e.get("attributes", {}).get("color", "grey")
-        rel = EDGE_COLOR_TO_RELATIONSHIP.get(color, "related_to")
+        # Authoritative label wins; color is only a fallback for graph-only edges.
+        rel = (label_overrides or {}).get((s, t))
+        if rel is None:
+            color = e.get("attributes", {}).get("color", "grey")
+            rel = EDGE_COLOR_TO_RELATIONSHIP.get(color, "related_to")
         edges.append((s, t, rel))
 
         adj.setdefault(s, set()).add(t)
@@ -109,17 +152,23 @@ def edge_weight(rel_type: str) -> float:
     return RELATIONSHIP_WEIGHTS.get(rel_type, 5.0)
 
 
-async def fetch_and_parse_graph(record_id: int) -> ParsedGraph | None:
+async def fetch_and_parse_graph(
+    record_id: int, authoritative_labels: bool = False
+) -> ParsedGraph | None:
     """Fetch graph data for a record and parse it into a ParsedGraph.
 
     Args:
         record_id: The FAIRsharing record ID.
+        authoritative_labels: If True, make one extra API call to fetch the record's
+            `recordAssociations` and overlay their exact labels onto the seed record's
+            incident edges, bypassing lossy color inference for those edges. Costs one
+            additional request; edges elsewhere in the neighbourhood still use color.
 
     Returns:
         A ParsedGraph, or None if no graph data is available.
     """
     from fairsharing_mcp import app
-    from fairsharing_mcp.queries import GET_GRAPH_QUERY
+    from fairsharing_mcp.queries import GET_GRAPH_QUERY, GET_RECORD_WITH_ASSOCIATIONS_QUERY
 
     client = app.get_client()
     data = await client.query(GET_GRAPH_QUERY, {"id": record_id})
@@ -128,8 +177,22 @@ async def fetch_and_parse_graph(record_id: int) -> ParsedGraph | None:
     if not graph:
         return None
 
+    overrides: dict[tuple[str, str], str] | None = None
+    if authoritative_labels:
+        try:
+            rec_data = await client.query(GET_RECORD_WITH_ASSOCIATIONS_QUERY, {"id": record_id})
+            record = rec_data.get("fairsharingRecord")
+            if record:
+                overrides = build_label_overrides(record, record_id)
+        except FAIRsharingError:
+            # Non-fatal: fall back to color inference rather than failing the whole call.
+            logger.warning(
+                "Could not fetch authoritative labels for record %s; using color inference",
+                record_id,
+            )
+
     try:
-        return parse_graph(graph)
+        return parse_graph(graph, label_overrides=overrides)
     except GraphParseError as e:
         raise FAIRsharingError(f"Invalid graph data: {e}") from e
 

@@ -108,29 +108,79 @@ DATABASE_FAIR_INDICATOR_FIELDS = [
     "usesPersistentIdentifier",
 ]
 
-# Edge color → relationship type mapping from FAIRsharing graph data
+# The 14 relationship labels the API actually defines, from `recordAssociationLabels`.
+# This is the authoritative vocabulary; anything outside it is a derivation artefact.
+RECORD_ASSOCIATION_LABELS = [
+    "implements",
+    "accepts",
+    "outputs",
+    "related_to",
+    "shares_code_with",
+    "shares_data_with",
+    "profiles",
+    "extends",
+    "deprecates",
+    "collects",
+    "recommends",
+    "part_of",
+    "measures_principle",
+    "has_associated_metric",
+]
+
+# Edge color → relationship type mapping for the `fairsharingGraph` payload.
+#
+# PROVENANCE: derived empirically, not guessed. Graph edge colors were joined against
+# the authoritative `recordAssocLabel` from `recordAssociations` over ~950 sampled
+# records, restricted to record pairs with exactly one association and one graph edge
+# so the join is unambiguous. Sample sizes per color are noted below.
+#
+# Prefer `recordAssocLabel` whenever the calling code has it (see
+# graph_utils.build_label_overrides). Color inference is a fallback for graph-only
+# nodes, and it CANNOT be exact — see the "brown" note below.
 EDGE_COLOR_TO_RELATIONSHIP = {
-    "pink": "implements",
-    "grey": "related_to",
-    "#e6e600": "collects",
-    "orange": "recommends",
-    "green": "extends",
-    "red": "deprecates",
-    "black": "related_to",
-    "blue": "shares_data_with",
-    "brown": "other",
-    "violet": "outputs",
-    "indigo": "profiles",
+    "#e6e600": "collects",  # n=797
+    "grey": "related_to",  # n=104
+    "#7ae827": "has_associated_metric",  # n=72
+    "pink": "implements",  # n=50
+    "orange": "recommends",  # n=366 (separate sample)
+    "green": "profiles",  # n=18
+    "black": "extends",  # n=17
+    "red": "deprecates",  # n=10
+    "brown": "shares_data_with",  # n=10 — AMBIGUOUS, see below
+    "indigo": "outputs",  # n=8
+    "#e827a4": "measures_principle",  # n=6
+    "blue": "accepts",  # n=2 — low sample
+    "violet": "outputs",  # never observed in sampling; retained unverified
 }
 
-# Semantic distance weights for Dijkstra path finding (lower = stronger/closer relationship)
+# Colors that carry more than one true label and therefore cannot be resolved by
+# color alone. "brown" was observed as shares_data_with (n=10) AND part_of (n=4);
+# it is mapped to the more frequent one, so part_of edges are mislabelled whenever
+# only the graph payload is available. Callers needing exactness must use
+# `recordAssocLabel` via build_label_overrides().
+AMBIGUOUS_EDGE_COLORS = {"brown": ["shares_data_with", "part_of"]}
+
+# Labels that no observed color maps to, so they are unreachable from graph data alone.
+# "part_of" collides with brown (above); "shares_code_with" appeared once in ~950
+# records and never in a joinable position.
+COLOR_UNREACHABLE_LABELS = ["part_of", "shares_code_with"]
+
+# Semantic distance weights for Dijkstra path finding (lower = stronger/closer relationship).
+# Covers all 14 labels in RECORD_ASSOCIATION_LABELS plus the "other" fallback; a label
+# missing from this table silently degrades to the 5.0 worst case, which is what used to
+# happen to part_of / measures_principle / has_associated_metric / accepts / shares_code_with.
 RELATIONSHIP_WEIGHTS = {
     "implements": 1.0,
+    "part_of": 1.2,
+    "has_associated_metric": 1.5,
+    "measures_principle": 1.5,
     "recommends": 1.5,
     "extends": 1.8,
     "profiles": 2.0,
     "outputs": 2.0,
+    "accepts": 2.2,
     "collects": 2.5,
+    "shares_code_with": 2.5,
     "shares_data_with": 2.5,
     "deprecates": 3.0,
     "related_to": 4.0,
@@ -174,14 +224,21 @@ DATABASE_COMPREHENSIVE_WEIGHTS = {
     "metadata_completeness": 1.5,  # publications, description, DOI, licences
 }  # Max comprehensive: 14.0
 
+# Influence transfer weights for PageRank (higher = more influence transferred).
+# Covers all 14 labels; a missing label degrades to the 0.2 floor.
 RELATIONSHIP_INFLUENCE_WEIGHTS = {
     "implements": 1.0,
+    "part_of": 0.8,
     "recommends": 0.8,
     "extends": 0.7,
+    "has_associated_metric": 0.7,
+    "measures_principle": 0.7,
     "profiles": 0.6,
+    "accepts": 0.6,
     "outputs": 0.5,
     "shares_data_with": 0.5,
     "collects": 0.4,
+    "shares_code_with": 0.4,
     "related_to": 0.3,
     "deprecates": 0.2,
     "other": 0.2,

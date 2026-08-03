@@ -10,6 +10,7 @@ from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
+from fairsharing_mcp.constants import EDGE_COLOR_TO_RELATIONSHIP
 from fairsharing_mcp.queries import (
     GET_GRAPH_QUERY,
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
@@ -357,19 +358,8 @@ async def find_record_connections(
                     visited.add(neighbor)
                     queue.append(path + [neighbor])
 
-        color_meaning = {
-            "pink": "implements",
-            "grey": "related_to",
-            "#e6e600": "collects",
-            "orange": "recommends",
-            "green": "extends",
-            "red": "deprecates",
-            "black": "related_to",
-            "blue": "shares_data_with",
-            "brown": "other",
-            "violet": "outputs",
-            "indigo": "profiles",
-        }
+        # Single source of truth — this used to be a divergent hardcoded copy.
+        color_meaning = EDGE_COLOR_TO_RELATIONSHIP
 
         # Shared neighbors
         neighbors_1 = adj.get(key1, set())

@@ -1,6 +1,6 @@
 # fairsharing-mcp
 
-An MCP (Model Context Protocol) server that exposes the [FAIRsharing](https://fairsharing.org) GraphQL API as **96 tools** for discovering, analyzing, and comparing data standards, databases, and policies in life sciences research.
+An MCP (Model Context Protocol) server that exposes the [FAIRsharing](https://fairsharing.org) GraphQL API as **97 tools** for discovering, analyzing, and comparing data standards, databases, and policies in life sciences research.
 
 [FAIRsharing](https://fairsharing.org) is a curated registry of standards, databases, and data policies used and recommended by journals, funders, and institutions. This MCP server gives AI assistants structured access to its knowledge graph.
 
@@ -145,11 +145,12 @@ All tools are prefixed with `fairsharing_` and support both `markdown` (default)
 | `fairsharing_advanced_filter_records` | Search with all filters including FAIR indicators |
 | `fairsharing_search_by_doi` | Look up a record by DOI or FAIRsharing URL |
 
-### Records (7 tools)
+### Records (8 tools)
 
 | Tool | Description |
 |------|-------------|
 | `fairsharing_get_record` | Get detailed information about a record |
+| `fairsharing_list_associations` | Enumerate ALL of a record's associations, paginated, with exact relationship labels |
 | `fairsharing_get_record_graph` | Get a record's relationship graph |
 | `fairsharing_get_record_types` | List all record types |
 | `fairsharing_filter_records_by_date` | Find records by creation/update year range |
@@ -331,7 +332,7 @@ ranking standards by adoption, policy endorsement, and stability.
 
 ## Output Formats
 
-All 96 tools accept `output_format` parameter:
+All 97 tools accept `output_format` parameter:
 
 - **`"markdown"`** (default) — Human-readable formatted output
 - **`"json"`** — Machine-readable structured data, suitable for programmatic chaining between tools
@@ -344,7 +345,7 @@ server.py -> tools/__init__.py -> tools/*.py -> app.py -> client.py -> FAIRshari
 
 - **FastMCP** framework with stdio transport
 - **Async GraphQL client** with token bucket rate limiting (5 RPS), LRU response cache (500 entries), connection pooling
-- **96 tools** across 11 domain modules with MCP annotations (`readOnlyHint`, `idempotentHint`, `openWorldHint`)
+- **97 tools** across 12 domain modules with MCP annotations (`readOnlyHint`, `idempotentHint`, `openWorldHint`)
 - **Pydantic Field validation** on all tool parameters (range constraints, patterns, descriptions)
 - **Pure Python** graph algorithms (no networkx) — CPU-bound work offloaded to `asyncio.to_thread()`
 - **27 GraphQL query constants** including `advancedSearch` for server-side FAIR indicator filtering
@@ -354,7 +355,7 @@ See `CLAUDE.md` for detailed architecture documentation.
 ## Development
 
 ```bash
-# Run all tests (282 tests)
+# Run all tests (305 tests)
 python -m pytest tests/test_server.py
 
 # Run specific tests
