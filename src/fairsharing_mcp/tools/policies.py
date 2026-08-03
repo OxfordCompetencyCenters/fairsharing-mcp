@@ -14,7 +14,11 @@ from fairsharing_mcp.constants import (
     POLICY_MANDATE_FIELDS,
     POLICY_TYPES,
 )
-from fairsharing_mcp.formatters import build_fairsharing_url, format_policy_detail
+from fairsharing_mcp.formatters import (
+    build_fairsharing_url,
+    format_policy_detail,
+    truncation_notice,
+)
 from fairsharing_mcp.queries import (
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
     SEARCH_RECORDS_QUERY,
@@ -1131,7 +1135,7 @@ async def trace_policy_impact(
                     for db in dbs[:15]:
                         lines.append(f"  - {db['name']} [ID: {db['id']}]")
                     if len(dbs) > 15:
-                        lines.append(f"  _(...and {len(dbs) - 15} more)_")
+                        lines.append(truncation_notice(15, len(dbs), "databases", indent="  "))
                 else:
                     lines.append("_No implementing databases found._")
                 lines.append("")
@@ -1378,7 +1382,7 @@ async def find_policy_gaps(
             for s in uncovered_standards[:30]:
                 lines.append(_record_entry(s, show_type=True))
             if len(uncovered_standards) > 30:
-                lines.append(f"_(...and {len(uncovered_standards) - 30} more)_")
+                lines.append(truncation_notice(30, len(uncovered_standards), "standards"))
             lines.append("")
 
         if uncovered_databases:
@@ -1386,7 +1390,7 @@ async def find_policy_gaps(
             for d in uncovered_databases[:30]:
                 lines.append(_record_entry(d, show_type=True))
             if len(uncovered_databases) > 30:
-                lines.append(f"_(...and {len(uncovered_databases) - 30} more)_")
+                lines.append(truncation_notice(30, len(uncovered_databases), "databases"))
             lines.append("")
 
         # Covered resources
@@ -1395,7 +1399,7 @@ async def find_policy_gaps(
             for s in covered_standards[:20]:
                 lines.append(_record_entry(s))
             if len(covered_standards) > 20:
-                lines.append(f"_(...and {len(covered_standards) - 20} more)_")
+                lines.append(truncation_notice(20, len(covered_standards), "standards"))
             lines.append("")
 
         if covered_databases:
@@ -1403,7 +1407,7 @@ async def find_policy_gaps(
             for d in covered_databases[:20]:
                 lines.append(_record_entry(d))
             if len(covered_databases) > 20:
-                lines.append(f"_(...and {len(covered_databases) - 20} more)_")
+                lines.append(truncation_notice(20, len(covered_databases), "databases"))
             lines.append("")
 
         if config.get_truncation_warning():

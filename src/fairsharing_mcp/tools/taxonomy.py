@@ -10,7 +10,11 @@ from pydantic import Field
 
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
-from fairsharing_mcp.formatters import format_hierarchy_item
+from fairsharing_mcp.formatters import (
+    SEARCH_RECORDS_REMEDY,
+    format_hierarchy_item,
+    truncation_notice,
+)
 from fairsharing_mcp.queries import (
     BROWSE_SUBJECTS_QUERY,
     GET_DOMAIN_QUERY,
@@ -887,7 +891,11 @@ async def analyze_subject_landscape(
                     entry += f" - ID: {r.get('id', '?')}"
                     lines.append(entry)
                 if total > 10:
-                    lines.append(f"  _(...and {total - 10} more)_")
+                    lines.append(
+                        truncation_notice(
+                            10, total, "records", remedy=SEARCH_RECORDS_REMEDY, indent="  "
+                        )
+                    )
             else:
                 lines.append(f"_No {reg_plural[reg].lower()} found._")
             lines.append("")

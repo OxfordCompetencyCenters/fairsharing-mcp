@@ -12,10 +12,12 @@ from pydantic import Field
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.formatters import (
+    LIST_ASSOCIATIONS_REMEDY,
     build_fairsharing_url,
     escape_md_table,
     format_record_detail,
     format_record_summary,
+    truncation_notice,
 )
 from fairsharing_mcp.graph_utils import GraphParseError, parse_graph
 from fairsharing_mcp.helpers import matches_date_range
@@ -567,7 +569,9 @@ async def get_record_graph(
         for rt, count in record_types.most_common(max_types):
             lines.append(f"- **{rt}:** {count:,}")
         if len(record_types) > max_types:
-            lines.append(f"- _({len(record_types) - max_types} more types)_")
+            lines.append(
+                truncation_notice(max_types, len(record_types), "record types", indent="- ")
+            )
         lines.append("")
 
         # --- Status distribution ---
@@ -635,7 +639,15 @@ async def get_record_graph(
                         items = out_by_reg[reg]
                         lines.append(f"- **{reg.title()}** ({len(items)}): {', '.join(items[:10])}")
                         if len(items) > 10:
-                            lines.append(f"  _(...and {len(items) - 10} more)_")
+                            lines.append(
+                                truncation_notice(
+                                    10,
+                                    len(items),
+                                    "neighbours",
+                                    remedy=LIST_ASSOCIATIONS_REMEDY,
+                                    indent="  ",
+                                )
+                            )
                     lines.append("")
 
                 if direct_in:
@@ -651,7 +663,15 @@ async def get_record_graph(
                         items = in_by_reg[reg]
                         lines.append(f"- **{reg.title()}** ({len(items)}): {', '.join(items[:10])}")
                         if len(items) > 10:
-                            lines.append(f"  _(...and {len(items) - 10} more)_")
+                            lines.append(
+                                truncation_notice(
+                                    10,
+                                    len(items),
+                                    "neighbours",
+                                    remedy=LIST_ASSOCIATIONS_REMEDY,
+                                    indent="  ",
+                                )
+                            )
                     lines.append("")
             else:
                 lines.append("_(Use summary_mode=False for full neighbor lists.)_")
@@ -1262,6 +1282,16 @@ async def resolve_identifier(
     if fs_match:
         # Reconstruct full DOI for search
         identifier = f"10.25504/{fs_match.group(1)}"
+
+    # Form 2b: numeric-ID URL, e.g. https://fairsharing.org/7162
+    # Not a canonical citation form, but the site serves it and users paste it, so
+    # resolving it is exactly this tool's job — returning the canonical URL for it.
+    if record_id is None and not fs_match:
+        num_url_match = re.match(
+            r"https?://(?:www\.)?fairsharing\.org/(\d+)/?(?:[?#].*)?$", identifier
+        )
+        if num_url_match:
+            record_id = int(num_url_match.group(1))
 
     # Form 3: DOI URL → strip to bare DOI
     doi_url_match = re.match(r"https?://doi\.org/(10\.\d+/.+)", identifier)

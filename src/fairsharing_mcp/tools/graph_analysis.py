@@ -18,7 +18,7 @@ from pydantic import Field
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.constants import RELATIONSHIP_INFLUENCE_WEIGHTS
-from fairsharing_mcp.formatters import escape_md_table
+from fairsharing_mcp.formatters import escape_md_table, truncation_notice
 from fairsharing_mcp.graph_utils import (
     NodeInfo,
     ParsedGraph,
@@ -950,7 +950,9 @@ async def find_similar_records(
             for sn in shared_names[:10]:
                 lines.append(f"  - {sn}")
             if len(shared_names) > 10:
-                lines.append(f"  _(...and {len(shared_names) - 10} more)_")
+                lines.append(
+                    truncation_notice(10, len(shared_names), "shared neighbours", indent="  ")
+                )
 
         return "\n".join(lines)
 
@@ -2166,7 +2168,9 @@ async def find_dependency_clusters(
                     t_label = graph.nodes[t].label if t in graph.nodes else t
                     lines.append(f"- {s_label} --[{rel}]--> {t_label}")
                 if len(internal_edges) > 20:
-                    lines.append(f"_(...and {len(internal_edges) - 20} more)_")
+                    lines.append(
+                        truncation_notice(20, len(internal_edges), "internal relationships")
+                    )
 
             lines.append("")
 

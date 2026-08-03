@@ -1,5 +1,7 @@
 import json
 import os
+import pathlib
+import re
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -12,7 +14,12 @@ from fairsharing_mcp.constants import (
     RELATIONSHIP_INFLUENCE_WEIGHTS,
     RELATIONSHIP_WEIGHTS,
 )
-from fairsharing_mcp.formatters import build_fairsharing_url, format_record_detail
+from fairsharing_mcp.formatters import (
+    build_fairsharing_url,
+    format_record_detail,
+    format_record_summary,
+    truncation_notice,
+)
 from fairsharing_mcp.graph_utils import build_label_overrides, merge_graphs, parse_graph
 from fairsharing_mcp.helpers import build_advanced_search_where, matches_date_range
 from fairsharing_mcp.tools.comparison import (
@@ -8687,6 +8694,129 @@ class TestEcosystemDirectionSeparation(unittest.IsolatedAsyncioTestCase):
         self.assertIn("fairsharing_list_associations", tight)
         self.assertNotIn("Showing", full)
         self.assertGreater(len(full), len(tight))
+
+
+class TestTruncationNotice(unittest.TestCase):
+    """The shared truncation notice. Every capped list must state its true total."""
+
+    def test_states_shown_and_total(self):
+        self.assertEqual(truncation_notice(15, 41), "_Showing 15 of 41._")
+
+    def test_includes_item_noun(self):
+        self.assertEqual(truncation_notice(15, 41, "metrics"), "_Showing 15 of 41 metrics._")
+
+    def test_includes_remedy(self):
+        note = truncation_notice(20, 41, "records", remedy="Call `x` for the rest.")
+        self.assertIn("Showing 20 of 41 records.", note)
+        self.assertIn("Call `x` for the rest.", note)
+
+    def test_indent_is_preserved_outside_the_italics(self):
+        note = truncation_notice(5, 9, "items", indent="  ")
+        self.assertTrue(note.startswith("  _"))
+        self.assertTrue(note.endswith("_"))
+
+
+class TestTruncationSweep(unittest.TestCase):
+    """Guards the sweep: no message may report only what is hidden."""
+
+    OLD_PATTERN = re.compile(r"_\(\.{0,3}and .*more\)_")
+
+    def test_no_old_style_messages_remain(self):
+        """'(and 21 more)' gives a count of the hidden but not the total or the remedy.
+        That phrasing is what led a client to conclude the data was unavailable."""
+        src = pathlib.Path(__file__).resolve().parent.parent / "src" / "fairsharing_mcp"
+        offenders = []
+        for path in src.rglob("*.py"):
+            for i, line in enumerate(path.read_text().splitlines(), start=1):
+                if self.OLD_PATTERN.search(line):
+                    offenders.append(f"{path.name}:{i}")
+        self.assertEqual(offenders, [], f"old-style truncation messages found: {offenders}")
+
+    def test_summary_subject_truncation_states_total(self):
+        record = {
+            "id": "1",
+            "name": "R",
+            "registry": "Standard",
+            "subjects": [{"label": f"S{i}"} for i in range(12)],
+        }
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_SUBJECTS": "3"}):
+            out = format_record_summary(record)
+        self.assertIn("Showing 3 of 12 subjects", out)
+
+    def test_detail_taxonomy_truncation_states_total(self):
+        record = {
+            "id": "1",
+            "name": "R",
+            "registry": "Database",
+            "taxonomies": [{"label": f"T{i}"} for i in range(25)],
+        }
+        with patch.dict(os.environ, {"FAIRSHARING_DISPLAY_MAX_TAXONOMIES": "4"}):
+            out = format_record_detail(record)
+        self.assertIn("Showing 4 of 25 taxonomies", out)
+
+
+class TestResolveNumericUrl(unittest.IsolatedAsyncioTestCase):
+    """A numeric-ID URL is not a canonical citation form, but the site serves it and
+    users paste it, so resolving it to the canonical URL is exactly this tool's job."""
+
+    @staticmethod
+    def _mock(mock_get_client):
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "fairsharingRecord": {
+                "id": "7162",
+                "name": "FAIR Benchmark",
+                "registry": "FAIRassist",
+                "type": "benchmark",
+                "status": "ready",
+                "doi": "10.25504/FAIRsharing.abc123",
+            }
+        }
+        return mock_client
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_numeric_url_resolves(self, mock_get_client):
+        self._mock(mock_get_client)
+        out = await resolve_identifier("https://fairsharing.org/7162")
+        self.assertIn("FAIR Benchmark", out)
+        self.assertIn("https://fairsharing.org/FAIRsharing.abc123", out)
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_numeric_url_variants(self, mock_get_client):
+        self._mock(mock_get_client)
+        for ident in (
+            "https://fairsharing.org/7162",
+            "https://fairsharing.org/7162/",
+            "http://fairsharing.org/7162",
+            "https://www.fairsharing.org/7162",
+            "https://fairsharing.org/7162?x=1",
+        ):
+            with self.subTest(identifier=ident):
+                self.assertIn("FAIR Benchmark", await resolve_identifier(ident))
+
+    @patch("fairsharing_mcp.app.get_client")
+    async def test_doi_suffix_url_still_resolves_by_doi_not_id(self, mock_get_client):
+        """The DOI-form URL must keep going through the DOI path, not the numeric one."""
+        mock_client = AsyncMock()
+        mock_get_client.return_value = mock_client
+        mock_client.query.return_value = {
+            "searchFairsharingRecords": {
+                "records": [
+                    {
+                        "id": "2521",
+                        "name": "FAIRsharing",
+                        "registry": "Database",
+                        "doi": "10.25504/FAIRsharing.2abjs5",
+                    }
+                ],
+                "totalCount": 1,
+                "totalPages": 1,
+            }
+        }
+        out = await resolve_identifier("https://fairsharing.org/FAIRsharing.2abjs5")
+        self.assertIn("FAIRsharing", out)
+        self.assertIn("searchFairsharingRecords", mock_client.query.call_args[0][0])
 
 
 if __name__ == "__main__":

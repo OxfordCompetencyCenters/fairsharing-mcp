@@ -14,6 +14,7 @@ from fairsharing_mcp.formatters import (
     build_fairsharing_url,
     compute_fair_score_detailed,
     normalize_quality_score,
+    truncation_notice,
 )
 from fairsharing_mcp.queries import (
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
@@ -498,7 +499,7 @@ async def compare_multiple_records(
                     f"**All {n} records link to ({len(shared_targets)}):** {', '.join(sorted(list(shared_targets)[:15]))}"
                 )
                 if len(shared_targets) > 15:
-                    lines.append(f"_(...and {len(shared_targets) - 15} more)_")
+                    lines.append(truncation_notice(15, len(shared_targets), "shared targets"))
             else:
                 lines.append("_No relationship targets shared by all records._")
 
@@ -1130,7 +1131,7 @@ async def compare_collections(
                 rec = source_contents[i]
                 lines.append(f"- {rec.get('name')} ({rec.get('registry')})")
             if len(id_set) > 5:
-                lines.append(f"  _(...and {len(id_set) - 5} more)_")
+                lines.append(truncation_notice(5, len(id_set), "records", indent="  "))
             lines.append("")
 
         analyze_set(shared, c1["contents"], "Shared Records")  # Can use either content dict

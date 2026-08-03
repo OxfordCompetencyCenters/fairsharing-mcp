@@ -11,7 +11,11 @@ from pydantic import Field
 from fairsharing_mcp import app
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.constants import STANDARD_COMPREHENSIVE_WEIGHTS
-from fairsharing_mcp.formatters import build_fairsharing_url
+from fairsharing_mcp.formatters import (
+    LIST_ASSOCIATIONS_REMEDY,
+    build_fairsharing_url,
+    truncation_notice,
+)
 from fairsharing_mcp.queries import (
     GET_LATEST_STATS_QUERY,
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
@@ -498,7 +502,7 @@ async def find_standards_for_database(
                     names = sorted(s.get("name", "Unknown") for s in items)
                     lines.append(f"- **{cat} ({len(items)}):** {', '.join(names[:10])}")
                     if len(names) > 10:
-                        lines[-1] += f" _(+{len(names) - 10} more)_"
+                        lines[-1] += f" _(showing 10 of {len(names)})_"
 
         return "\n".join(lines)
 
@@ -898,7 +902,15 @@ async def analyze_standard_adoption(
                     line += f" ({e['label']})"
                 result.append(line)
             if len(entries) > limit:
-                result.append(f"  _(...and {len(entries) - limit} more)_")
+                result.append(
+                    truncation_notice(
+                        limit,
+                        len(entries),
+                        "records",
+                        remedy=LIST_ASSOCIATIONS_REMEDY,
+                        indent="  ",
+                    )
+                )
             return result
 
         # Report

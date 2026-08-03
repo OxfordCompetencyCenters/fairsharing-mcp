@@ -54,6 +54,46 @@ def escape_md_table(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ").replace("\r", "")
 
 
+# Remedy pointers for truncated lists. A notice that names a problem without naming
+# an exit is what led a client to report association data as unavailable when it was
+# fully retrievable — always pair a cap with the tool that lifts it.
+LIST_ASSOCIATIONS_REMEDY = "Call `fairsharing_list_associations` for the complete, paginated list."
+PAGINATE_REMEDY = "Increase `per_page` or request the next `page` for more."
+SEARCH_RECORDS_REMEDY = (
+    "Call `fairsharing_search_records` with the same filter to page through all of them."
+)
+
+
+def truncation_notice(
+    shown: int,
+    total: int,
+    item: str = "",
+    remedy: str = "",
+    indent: str = "",
+) -> str:
+    """Build a uniform 'Showing X of Y' notice for a truncated list.
+
+    Always states the true total, so a reader can tell how much is hidden rather than
+    only that something is. Pass `remedy` whenever a tool or parameter can retrieve
+    the rest — see LIST_ASSOCIATIONS_REMEDY and PAGINATE_REMEDY.
+
+    Args:
+        shown: Number of entries actually rendered.
+        total: True total available.
+        item: Optional noun for the entries, e.g. "standards".
+        remedy: Optional sentence telling the caller how to get the rest.
+        indent: Optional leading whitespace to match surrounding list depth.
+
+    Returns:
+        A single markdown-italic line, e.g. "_Showing 15 of 41 metrics. Call ..._"
+    """
+    suffix = f" {item}" if item else ""
+    note = f"{indent}_Showing {shown} of {total}{suffix}."
+    if remedy:
+        note += f" {remedy}"
+    return note + "_"
+
+
 def extract_fair_indicators(record: dict) -> dict:
     """Extract FAIR indicator values from a record's metadata JSON blob.
 
@@ -132,7 +172,9 @@ def format_record_summary(record: dict) -> str:
             shown = subject_labels[:subj_limit] if subj_limit else subject_labels
             lines.append(f"- **Subjects:** {', '.join(shown)}")
             if subj_limit and len(subject_labels) > subj_limit:
-                lines.append(f"  _(and {len(subject_labels) - subj_limit} more)_")
+                lines.append(
+                    truncation_notice(subj_limit, len(subject_labels), "subjects", indent="  ")
+                )
 
     domains = record.get("domains", [])
     if domains:
@@ -142,7 +184,9 @@ def format_record_summary(record: dict) -> str:
             shown = domain_labels[:dom_limit] if dom_limit else domain_labels
             lines.append(f"- **Domains:** {', '.join(shown)}")
             if dom_limit and len(domain_labels) > dom_limit:
-                lines.append(f"  _(and {len(domain_labels) - dom_limit} more)_")
+                lines.append(
+                    truncation_notice(dom_limit, len(domain_labels), "domains", indent="  ")
+                )
 
     doi = record.get("doi")
     url = build_fairsharing_url(doi)
@@ -278,7 +322,7 @@ def format_record_detail(record: dict) -> str:
             label = t.get("label", "Unknown")
             lines.append(f"- {label}")
         if tax_limit and len(taxonomies) > tax_limit:
-            lines.append(f"_(and {len(taxonomies) - tax_limit} more)_")
+            lines.append(truncation_notice(tax_limit, len(taxonomies), "taxonomies"))
         lines.append("")
 
     # Countries
@@ -300,7 +344,7 @@ def format_record_detail(record: dict) -> str:
             homepage = org.get("homepage", "")
             lines.append(f"- {name}" + (f" ({homepage})" if homepage else ""))
         if org_limit and len(organisations) > org_limit:
-            lines.append(f"_(and {len(organisations) - org_limit} more)_")
+            lines.append(truncation_notice(org_limit, len(organisations), "organisations"))
         lines.append("")
 
     # Publications
@@ -323,7 +367,7 @@ def format_record_detail(record: dict) -> str:
                 pub_line += f" [DOI: {doi}]"
             lines.append(pub_line)
         if pub_limit and len(publications) > pub_limit:
-            lines.append(f"_(and {len(publications) - pub_limit} more)_")
+            lines.append(truncation_notice(pub_limit, len(publications), "publications"))
         lines.append("")
 
     # Licences
@@ -367,8 +411,7 @@ def format_record_detail(record: dict) -> str:
             lines.append(f"- **{label}** {name} ({registry}, ID: {rec_id})")
         if assoc_limit and len(assocs) > assoc_limit:
             lines.append(
-                f"_Showing {assoc_limit} of {len(assocs)}. "
-                "Call `fairsharing_list_associations` for the complete, paginated list._"
+                truncation_notice(assoc_limit, len(assocs), remedy=LIST_ASSOCIATIONS_REMEDY)
             )
         lines.append("")
 
@@ -415,7 +458,7 @@ def format_hierarchy_item(item: dict, include_description: bool = False) -> str:
         for c in to_show:
             lines.append(f"- {c.get('label', 'Unknown')} (ID: {c.get('id', 'N/A')})")
         if child_limit and len(children) > child_limit:
-            lines.append(f"_(and {len(children) - child_limit} more)_")
+            lines.append(truncation_notice(child_limit, len(children), "children"))
         lines.append("")
 
     ancestors = item.get("ancestors", [])
@@ -630,7 +673,7 @@ def format_policy_detail(record: dict) -> str:
                 entry_line += f" [ID: {s['id']}]"
                 lines.append(entry_line)
             if rec_limit and len(recommended_standards) > rec_limit:
-                lines.append(f"_(...and {len(recommended_standards) - rec_limit} more)_")
+                lines.append(truncation_notice(rec_limit, len(recommended_standards), "standards"))
             lines.append("")
 
         if recommended_databases:
@@ -643,7 +686,7 @@ def format_policy_detail(record: dict) -> str:
                 entry_line += f" [ID: {d['id']}]"
                 lines.append(entry_line)
             if rec_limit and len(recommended_databases) > rec_limit:
-                lines.append(f"_(...and {len(recommended_databases) - rec_limit} more)_")
+                lines.append(truncation_notice(rec_limit, len(recommended_databases), "databases"))
             lines.append("")
 
     # Publications
@@ -666,7 +709,7 @@ def format_policy_detail(record: dict) -> str:
                 pub_line += f" [DOI: {pub_doi}]"
             lines.append(pub_line)
         if pub_limit and len(publications) > pub_limit:
-            lines.append(f"_(and {len(publications) - pub_limit} more)_")
+            lines.append(truncation_notice(pub_limit, len(publications), "publications"))
         lines.append("")
 
     return "\n".join(lines)

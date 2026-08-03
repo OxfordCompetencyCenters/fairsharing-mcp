@@ -12,7 +12,11 @@ from pydantic import Field
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.constants import POLICY_MANDATE_FIELDS
-from fairsharing_mcp.formatters import format_record_summary
+from fairsharing_mcp.formatters import (
+    SEARCH_RECORDS_REMEDY,
+    format_record_summary,
+    truncation_notice,
+)
 from fairsharing_mcp.helpers import fetch_policy_with_fallback
 from fairsharing_mcp.queries import (
     LIST_COUNTRIES_QUERY,
@@ -550,7 +554,9 @@ async def analyze_country_landscape(
                     entry += f" (ID: {rec_id})"
                     lines.append(entry)
                 if rd["total"] > 10:
-                    lines.append(f"_(...and {rd['total'] - 10} more)_")
+                    lines.append(
+                        truncation_notice(10, rd["total"], "records", remedy=SEARCH_RECORDS_REMEDY)
+                    )
                 lines.append("")
 
         # Policy mandate summary (if policies exist)

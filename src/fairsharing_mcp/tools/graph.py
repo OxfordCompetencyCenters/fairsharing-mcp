@@ -11,7 +11,11 @@ from pydantic import Field
 from fairsharing_mcp import app, config
 from fairsharing_mcp.client import FAIRsharingError
 from fairsharing_mcp.constants import EDGE_COLOR_TO_RELATIONSHIP
-from fairsharing_mcp.formatters import build_fairsharing_url
+from fairsharing_mcp.formatters import (
+    LIST_ASSOCIATIONS_REMEDY,
+    build_fairsharing_url,
+    truncation_notice,
+)
 from fairsharing_mcp.queries import (
     GET_GRAPH_QUERY,
     GET_RECORD_WITH_ASSOCIATIONS_QUERY,
@@ -170,7 +174,7 @@ async def analyze_record_ecosystem(
         if taxonomies:
             lines.append(f"**Taxonomies:** {', '.join(taxonomies[:10])}")
             if len(taxonomies) > 10:
-                lines[-1] += f" _(+{len(taxonomies) - 10} more)_"
+                lines[-1] += f" _(showing 10 of {len(taxonomies)})_"
         if orgs:
             lines.append(f"**Organisations:** {', '.join(orgs[:5])}")
         lines.append("")
@@ -470,7 +474,7 @@ async def find_record_connections(
             for n in sorted(shared, key=lambda x: node_map.get(x, x))[:20]:
                 lines.append(f"- {node_map.get(n, n)} (ID: {n})")
             if len(shared) > 20:
-                lines.append(f"_(...and {len(shared) - 20} more)_")
+                lines.append(truncation_notice(20, len(shared), "shared neighbours"))
 
         return "\n".join(lines)
 
@@ -894,7 +898,11 @@ async def get_collection_contents(
                         f"- {item.get('name', 'Unknown')} ({item.get('registry', '?')}, ID: {item.get('id', '?')})"
                     )
                 if len(items) > 10:
-                    lines.append(f"_(...and {len(items) - 10} more)_")
+                    lines.append(
+                        truncation_notice(
+                            10, len(items), "records", remedy=LIST_ASSOCIATIONS_REMEDY
+                        )
+                    )
             lines.append("")
 
         return "\n".join(lines)

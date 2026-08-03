@@ -358,7 +358,7 @@ See `CLAUDE.md` for detailed architecture documentation.
 ## Development
 
 ```bash
-# Run all tests (318 tests)
+# Run all tests (328 tests)
 python -m pytest tests/test_server.py
 
 # Run specific tests
