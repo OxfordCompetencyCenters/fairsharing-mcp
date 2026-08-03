@@ -8819,5 +8819,77 @@ class TestResolveNumericUrl(unittest.IsolatedAsyncioTestCase):
         self.assertIn("searchFairsharingRecords", mock_client.query.call_args[0][0])
 
 
+def _version_key(v: str) -> list[int]:
+    """Coarse version tuple for comparison. Sufficient for the release-only versions
+    we pin; pre-release suffixes are truncated rather than ordered precisely."""
+    parts = re.split(r"[.\-+]", v)
+    out = []
+    for part in parts[:4]:
+        m = re.match(r"^(\d+)", part)
+        out.append(int(m.group(1)) if m else 0)
+    return out
+
+
+class TestDependencySecurityFloors(unittest.TestCase):
+    """The installed environment must satisfy the security floors declared in
+    pyproject.toml's [tool.uv] constraint-dependencies.
+
+    Those floors exist because 28 GitHub advisories (56 alerts, counted once per
+    manifest) were open against transitive dependencies reached through `mcp`. A
+    `uv lock --upgrade` that silently dropped one would re-open the alert with nothing
+    else failing, so it is asserted here rather than left to Dependabot to re-detect.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        try:
+            import tomllib
+        except ModuleNotFoundError:  # pragma: no cover - Python < 3.11
+            raise unittest.SkipTest("tomllib unavailable")
+        root = pathlib.Path(__file__).resolve().parent.parent
+        data = tomllib.loads((root / "pyproject.toml").read_text())
+        cls.constraints = data.get("tool", {}).get("uv", {}).get("constraint-dependencies", [])
+        cls.declared = data["project"]["dependencies"]
+
+    def test_constraints_are_declared(self):
+        """Guards against the constraint block being deleted wholesale."""
+        self.assertGreaterEqual(
+            len(self.constraints), 7, "security constraint floors are missing from pyproject.toml"
+        )
+
+    def test_installed_versions_meet_every_floor(self):
+        import importlib.metadata as md
+
+        failures = []
+        for spec in self.constraints:
+            m = re.match(r"^([A-Za-z0-9_.\-]+)\s*>=\s*([0-9][^,\s]*)$", spec)
+            self.assertIsNotNone(m, f"unparsed constraint: {spec!r}")
+            name, floor = m.group(1), m.group(2)
+            try:
+                installed = md.version(name)
+            except md.PackageNotFoundError:
+                continue  # not installed in this environment; nothing to verify
+            if _version_key(installed) < _version_key(floor):
+                failures.append(f"{name} {installed} < required {floor}")
+        self.assertEqual(failures, [], f"vulnerable dependency versions installed: {failures}")
+
+    def test_mcp_major_version_is_capped(self):
+        """mcp 2.x is a new major line. The dependency was previously unbounded, so a
+        fresh install could pull it and break the server with no local signal."""
+        import importlib.metadata as md
+
+        self.assertTrue(
+            any(d.startswith("mcp[cli]") and "<2" in d for d in self.declared),
+            "mcp must keep an upper bound below 2.0.0",
+        )
+        self.assertEqual(_version_key(md.version("mcp"))[0], 1, "installed mcp is not 1.x")
+
+    def test_httpx_major_version_is_capped(self):
+        self.assertTrue(
+            any(d.startswith("httpx") and "<1" in d for d in self.declared),
+            "httpx must keep an upper bound below 1.0.0",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

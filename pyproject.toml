@@ -20,9 +20,29 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 dependencies = [
-    "mcp[cli]>=1.2.0",
-    "httpx>=0.27.0",
-    "python-dotenv>=1.0.0",
+    # Upper bound is deliberate: mcp 2.x is a new major line with API changes, and an
+    # unbounded floor meant a fresh `pip install` could silently pull it on deploy.
+    "mcp[cli]>=1.28.1,<2.0.0",
+    "httpx>=0.28.1,<1.0.0",
+    "python-dotenv>=1.2.2",
+]
+
+[tool.uv]
+# Security floors for TRANSITIVE dependencies (all reached via mcp). These are not
+# packages this project imports, so they are constraints rather than dependencies —
+# they raise the minimum without claiming a direct relationship.
+#
+# Each floor is the "first patched version" from a GitHub advisory; removing one
+# re-opens the corresponding Dependabot alert. Re-verify with the protocol-level
+# check in the repo notes (stdio + streamable-http) before relaxing anything.
+constraint-dependencies = [
+    "starlette>=1.3.1",          # UNC-path SSRF, form() limits ignored, Host validation
+    "cryptography>=48.0.1",      # bundled OpenSSL, subgroup validation, buffer overflow
+    "pyjwt>=2.13.0",             # JWK-as-HMAC forgery, alg allow-list bypass, DoS
+    "python-multipart>=0.0.31",  # header/preamble DoS, quadratic querystring parsing
+    "pydantic-settings>=2.14.2", # symlink traversal in NestedSecretsSettingsSource
+    "idna>=3.15",                # DoS on crafted internationalised domain names
+    "pygments>=2.20.0",          # ReDoS
 ]
 
 [project.scripts]
